@@ -12,14 +12,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-//DEVELOPING
 @Mixin(value = OpenEndedPipe.class)
 public class OpenEndedPipeMixin {
 
@@ -35,9 +34,8 @@ public class OpenEndedPipeMixin {
     @Shadow(remap = false)
     private BlockPos pos;
 
-
     @Inject(method = "provideFluidToSpace", at = @At("HEAD"), cancellable = true, remap = false)
     private void inject(FluidStack fluid, boolean simulate, CallbackInfoReturnable<Boolean> cir){
-        //System.out.println("provideFluidToSpace");
+
     }
 }

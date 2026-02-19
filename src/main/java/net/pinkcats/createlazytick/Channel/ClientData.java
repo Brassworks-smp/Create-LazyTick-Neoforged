@@ -24,13 +24,11 @@ public class ClientData {
 
     }
 
-
     public ClientData(int extraData , String dimension, BlockPos pos) {
         this.pos = pos;
         this.dimension = dimension;
         this.extraData = extraData;
     }
-
 
     public String getDimension() {
         return dimension;

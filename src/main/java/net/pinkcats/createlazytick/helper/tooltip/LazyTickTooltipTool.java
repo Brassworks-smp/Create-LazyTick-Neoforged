@@ -16,9 +16,9 @@ public class LazyTickTooltipTool {
         if (ticks < 0) ticks = 0;
 
         return switch (ClientConfig.getTimeFormat()) {
-            case SECONDS -> String.format("%.1fs", ticks / 20.0f); // 除以 20.0f 得到秒数，保留1位小数
-            case BOTH -> String.format("%dt | %.1fs", ticks, ticks / 20.0f); // 60t | 3.0s
-            default -> ticks + "t";  // 默认仅显示 tick
+            case SECONDS -> String.format("%.1fs", ticks / 20.0f); 
+            case BOTH -> String.format("%dt | %.1fs", ticks, ticks / 20.0f); 
+            default -> ticks + "t";  
         };
     }
 }

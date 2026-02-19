@@ -29,7 +29,7 @@ public class ItemDrainGoggleMixin {
         if ((Object) this instanceof ISmartBlockEntityControl control) {
             int maxDelayTick = ServerConfig.getItemDrainDelayMax();
             this.createLazyTick$tick = LazyTickTooltipRenderer.appendLazyTickInfo(control, tooltip, this.createLazyTick$tick, maxDelayTick);
-            // 强制渲染
+
             cir.setReturnValue(true);
         }
     }

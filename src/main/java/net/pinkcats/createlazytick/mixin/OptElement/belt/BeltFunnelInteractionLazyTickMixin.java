@@ -17,7 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.pinkcats.createlazytick.config.ServerConfig;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -27,7 +27,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(BeltFunnelInteractionHandler.class)
 public class BeltFunnelInteractionLazyTickMixin {
 
-
     @Inject(method ="checkForFunnels" ,at=@At("HEAD" ),cancellable = true,remap = false)
     private static void checkForFunnels(BeltInventory beltInventory, TransportedItemStack currentItem, float nextOffset, CallbackInfoReturnable<Boolean> cir) {
         if (!ServerConfig.getEnableLazyTick() || !ServerConfig.getEnableLazyBelt()) {
@@ -36,7 +35,6 @@ public class BeltFunnelInteractionLazyTickMixin {
         BeltInventoryAccessor accessor = (BeltInventoryAccessor) beltInventory;
         boolean beltMovementPositive = accessor.getBeltMovementPositive();
         BeltBlockEntity beltInterface = accessor.getBelt();
-
 
         int firstUpcomingSegment = (int) Math.floor(currentItem.beltPosition);
         int step = beltMovementPositive ? 1 : -1;
@@ -101,7 +99,6 @@ public class BeltFunnelInteractionLazyTickMixin {
                 else
                     continue;
 
-
             if (beltInterface.invVersionTracker.stillWaiting(inserting))
                 continue;
 
@@ -135,7 +132,7 @@ public class BeltFunnelInteractionLazyTickMixin {
             }
 
             ItemStack remainder = inserting.insert(toInsert);
-            if (toInsert.equals(remainder, false)) {
+            if (ItemStack.isSameItemSameComponents(toInsert,remainder)) {
                 beltInterface.invVersionTracker.awaitNewVersion(inserting);
                 if (blocking) {
                     cir.setReturnValue(true);
@@ -150,7 +147,7 @@ public class BeltFunnelInteractionLazyTickMixin {
             if (!remainder.isEmpty()) {
                 remainder.grow(notFilled);
             } else if (notFilled > 0)
-                remainder = ItemHandlerHelper.copyStackWithSize(currentItem.stack, notFilled);
+                remainder = currentItem.stack.copyWithCount(notFilled);
 
             funnelBE.flap(true);
             funnelBE.onTransfer(toInsert);

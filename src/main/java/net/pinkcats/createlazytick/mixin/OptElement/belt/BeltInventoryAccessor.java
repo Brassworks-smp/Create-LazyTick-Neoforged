@@ -25,6 +25,4 @@ public interface BeltInventoryAccessor {
     @Accessor(value = "items")
     List<TransportedItemStack> getItems();
 
-
-
 }

@@ -77,14 +77,13 @@ public class ChuteLazyTickMixin extends SmartBlockEntity implements IHaveGoggleI
     @Unique
     int createLazyTick$chuteTick = 0;
 
-
     @Unique
     private void createLazyTick$LazyTickChute(boolean CanDownload){
         ISmartBlockEntityControl control = (ISmartBlockEntityControl) this;
 
         int currentLazyTickInterval = control.createLazyTick$getCurrentSuperTick();
         if (level != null && !level.isClientSide) {
-            // Current tick
+
             if (CanDownload) {
                 LazyTickLogic.setIntervalSafe(control,1);
             } else {
@@ -110,7 +109,6 @@ public class ChuteLazyTickMixin extends SmartBlockEntity implements IHaveGoggleI
         NetworkSyncHelper.createLazyTick$syncPacketData(control,
                 this.level, this.worldPosition, control.createLazyTick$getCurrentSuperTick(), ServerConfig.getChuteDelayMax());
 
-
         if (level != null && !level.isClientSide) canPickUpItems = canDirectlyInsert();
 
         boolean clientSide = level != null && level.isClientSide && !isVirtual();
@@ -125,7 +123,7 @@ public class ChuteLazyTickMixin extends SmartBlockEntity implements IHaveGoggleI
             if (itemMotion > 0)
                 handleInputFromBelow();
             if (item.isEmpty()) {
-                // 空了要把计时器归零
+
                 createLazyTick$chuteTick = 0;
             }
             ci.cancel();
@@ -135,25 +133,23 @@ public class ChuteLazyTickMixin extends SmartBlockEntity implements IHaveGoggleI
         int timeMultiplier = 1;
 
         if (level != null && !level.isClientSide) {
-            // 获取当前实际的休眠间隔
+
             timeMultiplier = control.createLazyTick$getCurrentSuperTick();
         }
 
-        // 计算补偿位移
         float compensatedMotion = itemMotion * timeMultiplier;
 
-        // 应用位移
         float nextOffset = itemPosition.getValue() + compensatedMotion;
 
         if (level != null && !level.isClientSide) {
             createLazyTick$chuteTick++;
-            //System.out.println("chuteTick: "+createLazyTick$chuteTick+"|"+control.createLazyTick$getLazyTickInterval());
+
             if (createLazyTick$chuteTick < control.createLazyTick$getCurrentSuperTick()) {
                 ci.cancel();
                 return;
             }
             createLazyTick$chuteTick = 0;
-            //System.out.println("Run tick");
+
         }
 
         if (itemMotion < 0) {
@@ -163,7 +159,6 @@ public class ChuteLazyTickMixin extends SmartBlockEntity implements IHaveGoggleI
 
                 createLazyTick$LazyTickChute(CanSimulateInput);
 
-
                 if  (!CanSimulateInput) {
                     nextOffset = .5f;
                 }
@@ -171,8 +166,6 @@ public class ChuteLazyTickMixin extends SmartBlockEntity implements IHaveGoggleI
                 else if (nextOffset < 0) {
                     boolean CanActualInput = handleDownwardOutput(clientSide);
                     createLazyTick$LazyTickChute(CanActualInput);
-
-
 
                     nextOffset = itemPosition.getValue();
                 }
@@ -195,17 +188,12 @@ public class ChuteLazyTickMixin extends SmartBlockEntity implements IHaveGoggleI
         ci.cancel();
     }
 
-
-    /**
-     * @author PinkCats
-     * @reason For Inject
-     */
     @Overwrite
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
         behaviours.add(new DirectBeltInputBehaviour(this).onlyInsertWhen((d) -> canDirectlyInsertCached()));
         behaviours.add(invVersionTracker = new VersionedInventoryTrackerBehaviour(this));
         registerAwardables(behaviours, AllAdvancements.CHUTE);
-        // new ↓
+
         LazyTickScrollBehaviour.addTo(this, behaviours);
     }
 }

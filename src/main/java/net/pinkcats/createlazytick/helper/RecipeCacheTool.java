@@ -13,14 +13,12 @@ import java.util.Map;
 
 public class RecipeCacheTool {
 
-    // Spout Cache Class
     public static final Map<Item, Boolean> CAN_FILL_CACHE = Collections.synchronizedMap(new LinkedHashMap<>() {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Item, Boolean> eldest) {
             return size() > ServerConfig.getSpoutCacheMax();
         }
     });
-
 
     public static final Map<SpoutCacheKey, Integer> AMOUNT_CACHE = Collections.synchronizedMap(new LinkedHashMap<>() {
         @Override
@@ -29,18 +27,15 @@ public class RecipeCacheTool {
         }
     });
 
-
-
-
     public static boolean IsCrafterCacheFull = false;
-    // Crafter Cache Class
+
     public static final Map<CrafterGridSignature, ItemStack> CrafterRecipeCache = new LinkedHashMap<>(16, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<CrafterGridSignature, ItemStack> eldest) {
-            // 使用配置项 crafter_global_cache_max
+
             int maxCacheSize = ServerConfig.getCrafterGlobalCacheMax();
             if (size() > maxCacheSize) {
-                // 日志需要检查 Debug 开关
+
                 if (!IsCrafterCacheFull && ServerConfig.getEnableCacheCrafterDebugger()) {
                     CreateLazyTick.LOGGER.info("[CreateLazyTick] Crafter Cache hit max capacity ({}). Eviction started.", maxCacheSize);
                     IsCrafterCacheFull = true;
@@ -50,7 +45,5 @@ public class RecipeCacheTool {
             return false;
         }
     };
-
-
 
 }

@@ -1,12 +1,11 @@
 package net.pinkcats.createlazytick.bridge.Crafter;
 
 import net.pinkcats.createlazytick.config.ServerConfig;
-import net.pinkcats.createlazytick.CreateLazyTick; // 引入主类以使用 LOGGER
+import net.pinkcats.createlazytick.CreateLazyTick; 
 
 import java.text.DecimalFormat;
 import java.util.concurrent.atomic.AtomicLong;
 
-//记录缓存命中数据用,仅在debug模式开启情况下,按照一分钟发送一次的频率发送info
 public class CrafterCacheStats {
 
     private static final AtomicLong hits = new AtomicLong(0);
@@ -57,7 +56,7 @@ public class CrafterCacheStats {
     }
 
     private static void checkPrint() {
-        // 合成器缓存开关关闭 或 Debug开关关闭，均不输出
+
         if (!ServerConfig.getEnableCacheCrafter() || !ServerConfig.getEnableCacheCrafterDebugger()) return;
 
         intervalOps.incrementAndGet();

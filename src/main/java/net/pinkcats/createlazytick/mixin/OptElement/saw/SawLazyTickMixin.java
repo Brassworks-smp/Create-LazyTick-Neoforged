@@ -31,7 +31,7 @@ public abstract class SawLazyTickMixin extends KineticBlockEntity implements ISm
     private int createLazyTick$sawTick = 0;
 
     @Unique
-    private boolean createLazyTick$inventoryChanged = false; //脏标记
+    private boolean createLazyTick$inventoryChanged = false; 
 
     @Unique
     private void createLazyTick$resetDelayTick() {
@@ -72,11 +72,6 @@ public abstract class SawLazyTickMixin extends KineticBlockEntity implements ISm
         if (!ServerConfig.getEnableLazyTick() || !ServerConfig.getEnableLazySaw()) return;
         if (level == null || level.isClientSide) return;
 
-        /*if(!level.isClientSide()) {
-            System.out.println("saw:" + createLazyTick$sawTick + "|" + this.createLazyTick$getLazyTickInterval());
-        }*/
-
-        // 如果正在加工(remainingTime > 0) 或 空闲(Empty),不拦截
         if (inventory.remainingTime > 0 || inventory.isEmpty()) {
             createLazyTick$resetDelayTick();
             return;
@@ -84,11 +79,10 @@ public abstract class SawLazyTickMixin extends KineticBlockEntity implements ISm
 
         createLazyTick$sawTick++;
 
-        // Tick < Interval -> Cancel
         if (createLazyTick$sawTick < this.createLazyTick$getCurrentSuperTick()) {
             ci.cancel();
         } else {
-            // reset timer and try Logic
+
             createLazyTick$sawTick = 0;
         }
     }

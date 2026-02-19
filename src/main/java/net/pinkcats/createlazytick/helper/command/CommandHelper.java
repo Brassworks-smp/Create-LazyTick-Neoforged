@@ -39,7 +39,6 @@ import java.util.stream.Collectors;
 public class CommandHelper {
     private static final int PAGE_SIZE = 15;
 
-    // 排序封装类 (模式 + 各自的独立反序标记)
     public static class SortCriterion {
         public final LazyTickSortMode mode;
         public final boolean isReverse;
@@ -50,29 +49,22 @@ public class CommandHelper {
         }
     }
 
-    // 不可跨纬度列表
-    // FOR LIST(可异步)
-    // 不用缓存了,异步线程池交给你了()
     public static int executeList(CommandContext<CommandSourceStack> context, int page, List<SortCriterion> criteria,
                                   boolean globalReverse, Predicate<Map.Entry<BlockPos, LazyTickStatCache>> filter,
                                   String rawSortStr, String rawFilterStr) {
         CommandSourceStack source = context.getSource();
         ServerLevel level = source.getLevel();
 
-        // 1. 从管理器获取原始数据
         Map<BlockPos, LazyTickStatCache> forcedMachines = ForcedActiveManager.getForcedMachines(level);
         if (forcedMachines.isEmpty()) {
             source.sendSystemMessage(Component.translatable("createlazytick.message.no_non_default_machines").withStyle(ChatFormatting.GREEN));
             return 0;
         }
 
-        // 创建区块是否加载以及执行位置上下文(主线程)
         CommandHelper.SortContext sortContext = CommandHelper.createSortContext(source, forcedMachines.keySet());
 
-        // 创建机器数据快照(主线程)
         List<Map.Entry<BlockPos, LazyTickStatCache>> rawDataSnapshot = new ArrayList<>(forcedMachines.entrySet());
 
-        // 2. 先筛选,筛选完成的转为List准备排序,如果没有符合条件的直接return(异步主要针对此处和第三步代码块)
         List<Map.Entry<BlockPos, LazyTickStatCache>> filteredEntries = new ArrayList<>();
         for (Map.Entry<BlockPos, LazyTickStatCache> entry : rawDataSnapshot) {
             if (filter.test(entry)) {
@@ -85,11 +77,10 @@ public class CommandHelper {
             return 0;
         }
 
-        // 3. 使用SortCriterion进行符合排序
         try {
             Comparator<Map.Entry<BlockPos, LazyTickStatCache>> finalComparator = null;
             for (SortCriterion criterion : criteria) {
-                // 有效反序 = (单项反序 异或 全局反序)
+
                 boolean effectiveReverse = (criterion.isReverse != globalReverse);
 
                 Comparator<Map.Entry<BlockPos, LazyTickStatCache>> modeComparator =
@@ -98,7 +89,7 @@ public class CommandHelper {
                 if (finalComparator == null) {
                     finalComparator = modeComparator;
                 } else {
-                    finalComparator = finalComparator.thenComparing(modeComparator); // 链式调用
+                    finalComparator = finalComparator.thenComparing(modeComparator); 
                 }
             }
             if (finalComparator != null) {
@@ -107,7 +98,7 @@ public class CommandHelper {
         } catch (Exception e1) {
             source.sendFailure(Component.translatable("createlazytick.error.sort_internal_error"));
             mes.error("List sort error: " + e1.getMessage());
-            // 排序失败则降级为默认排序再次尝试
+
             try {
                 filteredEntries.sort(LazyTickSortMode.DEFAULT.getThreadSafeComparator(sortContext.getLoadedPositions(),
                         sortContext.getPlayerPos(), false));
@@ -116,18 +107,16 @@ public class CommandHelper {
             }
         }
 
-        // 必须返回主线程执行
         CommandHelper.renderAllAndCleanData(source, level, filteredEntries, page, rawSortStr, globalReverse, rawFilterStr);
-        // 结束
+
         return 1;
     }
 
-    // for LIST
     public static List<CommandHelper.SortCriterion> parseSortString(String input) throws CommandSyntaxException {
         if (input == null || input.isBlank()) {
             return Collections.singletonList(new CommandHelper.SortCriterion(LazyTickSortMode.DEFAULT, false));
         }
-        // 剥离大括号和引号
+
         String trimmed = FilterParser.stripBracesAndQuotes(input);
 
         String[] parts = trimmed.split("[,\\s]+");
@@ -139,13 +128,11 @@ public class CommandHelper {
 
             boolean isReverse = false;
 
-            // 检测 "!" 前缀 (局部反序)
             if (cleanPart.startsWith("!")) {
                 isReverse = true;
                 cleanPart = cleanPart.substring(1).trim();
             }
 
-            // 查找对应模式
             LazyTickSortMode mode = LazyTickSortMode.byName(cleanPart);
 
             if (mode == null) {
@@ -163,7 +150,6 @@ public class CommandHelper {
             list.add(new CommandHelper.SortCriterion(mode, isReverse));
         }
 
-        // 如果解析结果为空,返回含有一个默认值元素的列表
         if (list.isEmpty()) {
             list.add(new CommandHelper.SortCriterion(LazyTickSortMode.DEFAULT, false));
         }
@@ -171,8 +157,6 @@ public class CommandHelper {
         return list;
     }
 
-    // 不可跨纬度重置
-    // FOR RESET(可异步)
     public static int executeReset(CommandContext<CommandSourceStack> context, Component description, Predicate<Map.Entry<BlockPos, LazyTickStatCache>> filter) {
         CommandSourceStack source = context.getSource();
         ServerLevel level = source.getLevel();
@@ -183,22 +167,19 @@ public class CommandHelper {
             return 0;
         }
 
-        // 创建区块是否加载以及执行位置上下文(主线程)
         CommandHelper.SortContext sortContext = CommandHelper.createSortContext(source, forcedMachines.keySet());
 
-        // 进行筛选(异步主要针对此处代码块)
         List<BlockPos> candidates = new ArrayList<>();
         for (Map.Entry<BlockPos, LazyTickStatCache> entry : forcedMachines.entrySet()) {
-            // 满足谓词(由 Handler 提供)
+
             if (filter.test(entry)) {
-                // 且必须在已加载区块内(快照判断)
+
                 if (sortContext.getLoadedPositions().contains(entry.getKey())) {
                     candidates.add(entry.getKey());
                 }
             }
         }
 
-        // 执行逻辑(必须回主线程)
         int count = ForcedActiveManager.executeBatchReset(level, candidates);
 
         if (count > 0) {
@@ -219,36 +200,25 @@ public class CommandHelper {
         return 1;
     }
 
-    // 复用 List Complex,无视分页,导出全量数据
     public static int executeDump(CommandContext<CommandSourceStack> context, List<SortCriterion> criteria,
                                   boolean globalReverse, Predicate<Map.Entry<BlockPos, LazyTickStatCache>> filter,
                                   String rawSortStr, String rawFilterStr) throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
         ServerLevel level = source.getLevel();
 
-        // 1: 在主线程创造数据快照(必须在主线程执行)
-        // 从管理器获取原始数据
         Map<BlockPos, LazyTickStatCache> forcedMachines = ForcedActiveManager.getForcedMachines(level);
         if (forcedMachines.isEmpty()) {
             source.sendFailure(Component.translatable("createlazytick.export.no_data"));
             return 0;
         }
 
-        // 创建位置和区块加载状态上下文快照
         CommandHelper.SortContext sortContext = CommandHelper.createSortContext(source, forcedMachines.keySet());
 
-        // 创建数据列表快照
         List<Map.Entry<BlockPos, LazyTickStatCache>> rawDataSnapshot = new ArrayList<>(forcedMachines.entrySet());
 
-        // 准备文件路径  // 需要确认是放在config里合适还是单开dump文件夹合适,修改此处请同事修改Line 333的输出信息
-        Path serverRoot = source.getServer().getServerDirectory().toPath();
+        Path serverRoot = source.getServer().getServerDirectory();
         Path dumpDir = serverRoot.resolve("dumps").resolve("createlazytick");
 
-        // ----------------------------------------从这里往下到方法末尾都可以异步
-        // 2: 筛选与排序
-        // 以下内容线程安全
-
-        // 执行筛选 (Filter)
         List<Map.Entry<BlockPos, LazyTickStatCache>> resultList = new ArrayList<>();
         for (Map.Entry<BlockPos, LazyTickStatCache> entry : rawDataSnapshot) {
             if (filter.test(entry)) {
@@ -263,14 +233,12 @@ public class CommandHelper {
             return 0;
         }
 
-        // 执行排序 (Sort)
         try {
             Comparator<Map.Entry<BlockPos, LazyTickStatCache>> finalComparator = null;
             for (SortCriterion criterion : criteria) {
-                // 计算实际反序状态 (局部 vs 全局)
+
                 boolean effectiveReverse = (criterion.isReverse != globalReverse);
 
-                // 使用快照数据获取比较器
                 Comparator<Map.Entry<BlockPos, LazyTickStatCache>> modeComparator =
                         criterion.mode.getThreadSafeComparator(sortContext.getLoadedPositions(), sortContext.getPlayerPos(), effectiveReverse);
 
@@ -296,7 +264,6 @@ public class CommandHelper {
             }
         }
 
-        // 3: IO 操作
         try {
             if (!Files.exists(dumpDir)) {
                 Files.createDirectories(dumpDir);
@@ -307,7 +274,7 @@ public class CommandHelper {
             Path filePath = dumpDir.resolve(fileName);
 
             try (BufferedWriter writer = Files.newBufferedWriter(filePath, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
-                // --- 写入文件头 ---
+
                 writer.write("=== Create Lazy Tick Data Dump ==="); writer.newLine();
                 writer.write("Time: " + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)); writer.newLine();
                 writer.write("Filter Chain: " + (rawFilterStr.isBlank() ? "[ALL]" : rawFilterStr)); writer.newLine();
@@ -315,14 +282,11 @@ public class CommandHelper {
                 writer.write("Total Records: " + resultList.size()); writer.newLine();
                 writer.write("----------------------------------------------------------------------------------"); writer.newLine();
 
-                // --- 写入列名 ---
-                // 格式对齐: Location(25) | Name(30) | Owner(16) | Mode(8) | Val(6) | Loaded(7) | Time
                 writer.write(String.format("%-25s | %-30s | %-16s | %-8s | %-6s | %-7s | %s",
                         "Location", "Machine Name", "Owner", "Mode", "Val", "Loaded", "Reg.Time"));
                 writer.newLine();
                 writer.write("----------------------------------------------------------------------------------"); writer.newLine();
 
-                // --- 写入数据行 ---
                 for (Map.Entry<BlockPos, LazyTickStatCache> entry : resultList) {
                     BlockPos pos = entry.getKey();
                     LazyTickStatCache data = entry.getValue();
@@ -334,7 +298,6 @@ public class CommandHelper {
                     String loadStr = isLoaded ? "YES" : "NO";
                     String timeStr = String.valueOf(data.getFormattedTime());
 
-                    // 使用 truncate 防止过长的名字破坏表格排版
                     String line = String.format("%-25s | %-30s | %-16s | %-8s | %-6s | %-7s | %s",
                             locStr,
                             truncate(data.getBlockId(), 29),
@@ -346,8 +309,6 @@ public class CommandHelper {
                 }
             }
 
-            // --- 反馈结果 ---
-            // 生成可点击的文件名组件 (点击复制)
             MutableComponent fileComp = mes.CharM(fileName)
                     .withStyle(ChatFormatting.UNDERLINE, ChatFormatting.AQUA)
                     .withStyle(style -> style.withClickEvent(new net.minecraft.network.chat.ClickEvent(
@@ -373,22 +334,18 @@ public class CommandHelper {
         mes.error("Failed to fallback to default sorting:\n"+ e2.getMessage());
     }
 
-    // 字符串截断辅助方法
     private static String truncate(String s, int len) {
         if (s == null) return "null";
         if (s.length() <= len) return s;
         return s.substring(0, len - 3) + "...";
     }
 
-    // For clt list/reset TIME==============================
-    // 每对圆括号为一组,严格限制一个关键词为两组(数字+单位 "3d")
     private static final Pattern DURATION_PATTERN = Pattern.compile("(\\d+)([dhms])", Pattern.CASE_INSENSITIVE);
     public static long parseDuration(String input) throws NumberFormatException {
         Matcher matcher = DURATION_PATTERN.matcher(input);
         long totalMs = 0;
         boolean foundAny = false;
 
-        // 从头开始,每找到一次符合的就进行一次计算,然后从最近一次找到符合的位置开始继续寻找
         while (matcher.find()) {
             foundAny = true;
             long value = Long.parseLong(matcher.group(1));
@@ -415,7 +372,6 @@ public class CommandHelper {
         return totalMs;
     }
 
-    // 静态类(快照)  For NEAREST=============================
     public static class SortContext {
         private final Vec3 playerPos;
         private final Set<BlockPos> loadedPositions;
@@ -443,17 +399,13 @@ public class CommandHelper {
         }
     }
 
-    // For clt list/reset NEAREST(生成相关位置和区块状态的上下文快照),与SortContext相关
     public static SortContext createSortContext(CommandSourceStack source, Set<BlockPos> targets) {
         ServerLevel level = source.getLevel();
 
-        // 1. 玩家坐标
         Vec3 playerPos = (source.getEntity() != null) ? source.getPosition() : null;
 
-        // 2. 当前元件所有加载中位置的集合(快照)
         Set<BlockPos> loadedPositionsSnapshot = new HashSet<>();
 
-        // 缓存优化,如果区块一致,不再get
         LongOpenHashSet loadedChunkCache = new LongOpenHashSet();
         LongOpenHashSet unloadedChunkCache = new LongOpenHashSet();
 
@@ -476,17 +428,14 @@ public class CommandHelper {
             }
         }
 
-        // 返回排序上下文
         return new SortContext(playerPos, loadedPositionsSnapshot);
     }
 
-    //For clt list===================================
     public static void renderAllAndCleanData(
             CommandSourceStack source, ServerLevel level, List<Map.Entry<BlockPos, LazyTickStatCache>> sortedEntries,
             int page, String sortStr, boolean globalReverse, String filterStr
     ) {
 
-        // 4. 分页计算
         int totalMachines = sortedEntries.size();
         int totalPages = (int) Math.ceil((double) totalMachines / PAGE_SIZE);
 
@@ -496,36 +445,30 @@ public class CommandHelper {
         int startIndex = (page - 1) * PAGE_SIZE;
         int endIndex = Math.min(startIndex + PAGE_SIZE, totalMachines);
 
-        // 5. 制作聊天栏标题
         LazyTickListRenderer.renderHeader(source, page, totalPages, totalMachines, sortStr);
 
-        // 6. 循环逐行渲染条目 + 清理无效数据
         for (int i = startIndex; i < endIndex; i++) {
             Map.Entry<BlockPos, LazyTickStatCache> entry = sortedEntries.get(i);
             BlockPos pos = entry.getKey();
 
-            // 只有区块已加载时, 才去检查元件是否还在
             if (level.isLoaded(pos)) {
                 BlockEntity be = level.getBlockEntity(pos);
 
-                // BE不存在/不是ISBEControl指定的元件/处于默认状态则清理
                 if (!(be instanceof ISmartBlockEntityControl control) || control.lazytick$isDefaultState()) {
                     ForcedActiveManager.unregister(level, pos);
 
                     CreateLazyTick.LOGGER.debug("Cleared invalid lazytick data entries:{}",  pos.toShortString());
-                    // 跳过本次渲染，不显示在列表里
-                    // (注意:会导致当前页显示少一行,但无伤大雅(能跑就行))
+
                     continue;
                 }
             }
-            // 制作单行信息条目
+
             LazyTickListRenderer.renderItem(source, i + 1, entry, level.isLoaded(pos));
         }
-        // 7. 制作翻页按钮
+
         LazyTickListRenderer.renderNavBar(source, page, totalPages, sortStr, globalReverse, filterStr);
     }
 
-    // for SuggestionProvider======================================
     public static class DimensionCache {
         private Set<String> machineNames = new HashSet<>();
         private Set<String> machineOwners = new HashSet<>();
@@ -539,7 +482,7 @@ public class CommandHelper {
     }
 
     public static final Map<ResourceKey<Level>, DimensionCache> dimensionCaches = new ConcurrentHashMap<>();
-    public static final long CACHE_TIMEOUT = 60000; //ms
+    public static final long CACHE_TIMEOUT = 60000; 
 
     public static DimensionCache getDimensionMachineStatCache(ServerLevel level) {
         ResourceKey<Level> dimension = level.dimension();
@@ -551,7 +494,6 @@ public class CommandHelper {
 
             Collection<LazyTickStatCache> machines = ForcedActiveManager.getForcedMachines(level).values();
 
-            // 获取当前维度的机器数据
             cache.machineNames = machines.stream()
                     .map(LazyTickStatCache::getBlockId)
                     .filter(s -> s != null && !s.isEmpty())

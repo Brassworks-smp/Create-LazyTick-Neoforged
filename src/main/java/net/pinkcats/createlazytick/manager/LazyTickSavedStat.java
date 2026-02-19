@@ -1,6 +1,7 @@
 package net.pinkcats.createlazytick.manager;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup; 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -14,14 +15,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class LazyTickSavedStat extends SavedData {
 
-    // 存档文件的名字
     private static final String DATA_FILE_NAME = "createlazytick_forced_machines";
 
-    // 从纯坐标升级为<坐标,详细信息缓存>
     private final Map<BlockPos, LazyTickStatCache> forcedMachines = new ConcurrentHashMap<>();
 
-    // 从NBT读取 (加载用)
-    public static LazyTickSavedStat load(CompoundTag nbt) {
+    public static LazyTickSavedStat load(CompoundTag nbt, HolderLookup.Provider provider) {
         LazyTickSavedStat data = new LazyTickSavedStat();
         if (nbt.contains("Machines", Tag.TAG_LIST)) {
             ListTag list = nbt.getList("Machines", Tag.TAG_COMPOUND);
@@ -29,7 +27,6 @@ public class LazyTickSavedStat extends SavedData {
                 CompoundTag entry = list.getCompound(i);
                 BlockPos pos = new BlockPos(entry.getInt("x"), entry.getInt("y"), entry.getInt("z"));
 
-                // 读取详细信息(写入Map)
                 LazyTickStatCache info = LazyTickStatCache.deserializeNBT(entry.getCompound("Info"));
                 data.forcedMachines.put(pos, info);
             }
@@ -37,17 +34,16 @@ public class LazyTickSavedStat extends SavedData {
         return data;
     }
 
-    // 写入Nbt(保存用)
     @Override
-    public @NotNull CompoundTag save(@NotNull CompoundTag nbt) {
+    public @NotNull CompoundTag save(@NotNull CompoundTag nbt, HolderLookup.Provider provider) {
         ListTag list = new ListTag();
         forcedMachines.forEach((pos, info) -> {
             CompoundTag entry = new CompoundTag();
-            // 存坐标
+
             entry.putInt("x", pos.getX());
             entry.putInt("y", pos.getY());
             entry.putInt("z", pos.getZ());
-            // 存详细信息
+
             entry.put("Info", info.serializeNBT());
 
             list.add(entry);
@@ -57,11 +53,10 @@ public class LazyTickSavedStat extends SavedData {
         return nbt;
     }
 
-    // Tool func
     public boolean add(BlockPos pos, LazyTickStatCache info) {
         if (!forcedMachines.containsKey(pos) || !forcedMachines.get(pos).equals(info)) {
             forcedMachines.put(pos, info);
-            setDirty(); // 标记需要存盘
+            setDirty(); 
 
             return true;
         }
@@ -77,17 +72,14 @@ public class LazyTickSavedStat extends SavedData {
         return false;
     }
 
-    // 获取完整映射表
     public Map<BlockPos, LazyTickStatCache> getMachinesMap() {
-        return new HashMap<>(forcedMachines);  // 返回副本防并发
+        return new HashMap<>(forcedMachines);  
     }
 
-    //获取指定世界的存储实例
     public static LazyTickSavedStat get(ServerLevel level) {
-        // computeIfAbsent 自动处理加载或新建
+
         return level.getDataStorage().computeIfAbsent(
-                LazyTickSavedStat::load,
-                LazyTickSavedStat::new,
+                new SavedData.Factory<>(LazyTickSavedStat::new, LazyTickSavedStat::load),
                 DATA_FILE_NAME
         );
     }

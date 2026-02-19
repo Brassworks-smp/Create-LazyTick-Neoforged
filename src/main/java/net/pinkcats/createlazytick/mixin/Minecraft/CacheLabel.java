@@ -29,25 +29,20 @@ public class CacheLabel {
         IsServerReload = true;
         LOGGER.info("[CreateLazyTick] clearing cache...");
 
-        // Clear Spout Cache.
         CAN_FILL_CACHE.clear();
         AMOUNT_CACHE.clear();
 
-        // Clear Crafter Cache / Reset Tick.
         CrafterRecipeCache.clear();
         IsCrafterCacheFull = false;
         CrafterCacheStats.reset();
         CrafterCacheStats.onCooldownSkip();
 
-
     }
-
 
     @Inject(method = "reloadResources", at = @At("RETURN"))
     private void ReloadEnd(Collection<String> collection, CallbackInfoReturnable<CompletableFuture<Void>> cir) {
         IsServerReload = true;
         LOGGER.info("[CreateLazyTick] End cache...");
-
 
     }
 
@@ -60,6 +55,5 @@ public class CacheLabel {
         }
 
     }
-
 
 }

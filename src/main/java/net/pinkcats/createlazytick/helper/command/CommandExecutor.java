@@ -15,7 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.pinkcats.createlazytick.helper.util.RegistriesWrapper;
 import net.pinkcats.createlazytick.Gui.mes;
 import net.pinkcats.createlazytick.manager.ForcedActiveManager;
 import net.pinkcats.createlazytick.manager.LazyTickSavedLimitList;
@@ -43,17 +43,15 @@ public class CommandExecutor {
             ).create();
         }
 
-        // 默认筛选过滤器:通过所有 (entry -> true)
         Predicate<Map.Entry<BlockPos, LazyTickStatCache>> matchAll = entry -> true;
 
         return CommandHelper.executeList(ctx, page, criteria, reverse, matchAll, mode.getId(), "");
     }
 
     public static int onListComplex(CommandContext<CommandSourceStack> context, int page, String sortStr, boolean globalReverse, String filterStr) throws CommandSyntaxException {
-        // 解析排序字符串 "{name, !time}" -> List<SortCriterion>
+
         List<CommandHelper.SortCriterion> criteria = CommandHelper.parseSortString(sortStr);
 
-        // 解析筛选字符串 "{val>10}" -> Predicate (允许空,表示全选)
         Predicate<Map.Entry<BlockPos, LazyTickStatCache>> filter = FilterParser.parse(filterStr, true);
 
         return CommandHelper.executeList(context, page, criteria, globalReverse, filter, sortStr, filterStr);
@@ -63,13 +61,13 @@ public class CommandExecutor {
         ResourceLocation rl = ctx.getArgument("block_name", ResourceLocation.class);
         String id = rl.toString();
 
-        Block block = ForgeRegistries.BLOCKS.getValue(rl);
+        Block block = RegistriesWrapper.BLOCKS.getValue(rl);
 
         Component nameComponent;
         if (block != null && block != Blocks.AIR) {
-            nameComponent = block.getName(); // 获取翻译组件
+            nameComponent = block.getName(); 
         } else {
-            nameComponent = mes.Char(id); // 降级为 ID
+            nameComponent = mes.Char(id); 
         }
 
         Component desc = Component.translatable(
@@ -107,7 +105,7 @@ public class CommandExecutor {
         int targetVal = IntegerArgumentType.getInteger(ctx, "target_value");
 
         String displaySymbol;
-        BiPredicate<Integer, Integer> logic; //Predicate 逻辑
+        BiPredicate<Integer, Integer> logic; 
 
         switch (operator.toLowerCase()) {
             case "biggerthan" -> {
@@ -135,7 +133,7 @@ public class CommandExecutor {
                 targetVal
         );
         return CommandHelper.executeReset(ctx, desc, entry -> {
-            // Never negative (-)
+
             int currentVal = entry.getValue().getScrollValue();
             return logic.test(currentVal, targetVal);
         });
@@ -168,19 +166,18 @@ public class CommandExecutor {
             return 0;
         }
 
-        // 准备显示符号和逻辑
         String displaySymbol;
         BiPredicate<Long, Long> logic;
 
         switch (operator.toLowerCase()) {
             case "olderthan" -> {
                 displaySymbol = ">";
-                // "存在时长(Age)" 大于 "目标时长" => 比对应目标时间戟更早/更旧
+
                 logic = (age, target) -> age > target;
             }
             case "newerthan" -> {
                 displaySymbol = "<";
-                // "存在时长(Age)" 小于 "目标时长" => 比对应目标时间戟更晚/更新
+
                 logic = (age, target) -> age < target;
             }
             default -> {
@@ -201,9 +198,8 @@ public class CommandExecutor {
         return CommandHelper.executeReset(ctx, desc, entry -> {
             long registeredTime = entry.getValue().getRegisteredTime();
 
-            if (registeredTime <= 0) return false;  // 非法数据
+            if (registeredTime <= 0) return false;  
 
-            // 计算由注册至今经过的时长 (Age)
             long age = now - registeredTime;
 
             return logic.test(age, targetDuration);
@@ -213,17 +209,15 @@ public class CommandExecutor {
     public static int onResetByComplex(CommandContext<CommandSourceStack> ctx) {
         String query = StringArgumentType.getString(ctx, "query");
         try {
-            // 1. 调用解析引擎生成逻辑
+
             Predicate<Map.Entry<BlockPos, LazyTickStatCache>> filter = FilterParser.parse(query);
 
-            // 2. 构造描述文本
             Component desc = Component.translatable("createlazytick.desc.composite_query", query);
 
-            // 3. 执行重置
             return CommandHelper.executeReset(ctx, desc, filter);
 
         } catch (CommandSyntaxException e) {
-            // 捕获解析器throw出的语法错误并反馈
+
             ctx.getSource().sendFailure(mes.Char(e.getMessage()));
             return 0;
         }
@@ -246,7 +240,6 @@ public class CommandExecutor {
             playersComp.append(mes.CharM(profile.getName()).withStyle(ChatFormatting.GOLD));
         }
 
-        // limit 显示：-1 => “无限”，否则数字（AQUA）
         Component limitComp = (limit == -1)
                 ? Component.translatable("createlazytick.quota.unlimited").withStyle(ChatFormatting.AQUA)
                 : mes.CharM(String.valueOf(limit)).withStyle(ChatFormatting.AQUA);
@@ -268,7 +261,6 @@ public class CommandExecutor {
         ServerLevel level = ctx.getSource().getLevel();
         LazyTickSavedLimitList data = LazyTickSavedLimitList.get(level);
 
-        // 玩家名列表组件（带颜色）
         MutableComponent playersComp = Component.empty();
         boolean first = true;
 
@@ -298,10 +290,9 @@ public class CommandExecutor {
         LazyTickSavedLimitList limitData = LazyTickSavedLimitList.get(level);
 
         for (GameProfile profile : profiles) {
-            // 1. 使用 UUID 获取限额
+
             int limit = limitData.getLimit(profile.getId());
 
-            // 2. 获取当前用量
             int used = ForcedActiveManager.getPlayerUsageCount(level, profile.getId());
 
             MutableComponent limitDisplay = (limit == -1)
@@ -310,7 +301,6 @@ public class CommandExecutor {
 
             ChatFormatting statusColor = (limit != -1 && used >= limit) ? ChatFormatting.RED : ChatFormatting.GREEN;
             MutableComponent usedDisplay = mes.CharM(String.valueOf(used)).withStyle(statusColor);
-
 
             MutableComponent playerName = mes.CharM(profile.getName()).withStyle(ChatFormatting.GOLD);
 
@@ -327,13 +317,10 @@ public class CommandExecutor {
 
     public static int onDump(CommandContext<CommandSourceStack> ctx, String sortStr, boolean globalReverse, String filterStr) throws CommandSyntaxException {
 
-        // 解析排序字符串 "{name, !time}" -> List<SortCriterion>
         List<CommandHelper.SortCriterion> criteria = CommandHelper.parseSortString(sortStr);
 
-        // 解析筛选字符串 "{val>10}" -> Predicate (允许空,表示全选)
         Predicate<Map.Entry<BlockPos, LazyTickStatCache>> filter = FilterParser.parse(filterStr, true);
 
-        // 导出
         return CommandHelper.executeDump(ctx, criteria, globalReverse, filter, sortStr, filterStr);
     }
 }

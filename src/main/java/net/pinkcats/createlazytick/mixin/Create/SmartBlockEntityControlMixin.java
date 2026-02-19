@@ -3,6 +3,7 @@ package net.pinkcats.createlazytick.mixin.Create;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -38,14 +39,11 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
         super(type, pos, state);
     }
 
-
     @Inject(method = "initialize", at = @At("RETURN"), remap = false)
     private void lazytick$onInit(CallbackInfo ci) {
         LazyTickTooltipWhiteList whiteItem = LazyTickTooltipWhiteList.getByEntity(this);
         if (whiteItem == null) return;
-        /*System.out.println("[LazyTick Init] Pos: " + this.worldPosition +
-                " | Dyn: " + this.lazyTick$dynamicValue +
-                " | Frc: " + this.lazyTick$forcedValue);*/
+
         if (this.level != null && !this.level.isClientSide()) {
             LazyTickLogic.updateState(this);
         }
@@ -57,19 +55,15 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
 
         if (!level.isLoaded(this.worldPosition)) return;
 
-        // 准备检查方块一致性(下位世界内的方块id)
         BlockState stateInLevel = level.getBlockState(this.worldPosition);
 
-        // 如果世界里的方块ID 不等于 方块实体记忆的方块ID(this.getBlockState().getBlock())
-        // 世界方块id变化快于方块实体回收速度
         if (!stateInLevel.is(this.getBlockState().getBlock())) {
             ForcedActiveManager.unregister(level, this.worldPosition);
         }
     }
 
-    // Server -> disk
     @Inject(method = "write", at = @At("RETURN"))
-    private void lazytick$writeNBT(CompoundTag tag, boolean clientPacket, CallbackInfo ci) {
+    private void lazytick$writeNBT(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket, CallbackInfo ci) {
         LazyTickTooltipWhiteList whiteItem = LazyTickTooltipWhiteList.getByEntity(this);
         if (whiteItem == null) return;
 
@@ -82,32 +76,29 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
         }
 
         tag.putInt("cltCurrentInterval", this.createLazyTick$CurrentDelayTick);
-        //System.out.println("interval write");
 
         if (this.lazytick$syncedTier != LazyTickTier.ACTIVE) {
             tag.putInt("cltTier", this.lazytick$syncedTier.ordinal());
-            //System.out.println("tier write");
+
         }
         if (this.lazytick$extraData != 0) {
             tag.putInt("cltExtraData", this.lazytick$extraData);
-            //System.out.println("extradata write");
+
         }
 
         if (this.lazyTick$dynamicValue != 100) {
             tag.putInt("cltDynamic", this.lazyTick$dynamicValue);
-            //System.out.println("dynamic write");
+
         }
 
         if (this.lazyTick$forcedValue != -1) {
             tag.putInt("cltForced", this.lazyTick$forcedValue);
-            //System.out.println("force write");
+
         }
     }
 
-    // disk -> Client
     @Inject(method = "read", at = @At("RETURN"))
-    private void lazytick$readNBT(CompoundTag tag, boolean clientPacket, CallbackInfo ci) {
-        //System.out.println("data read");
+    private void lazytick$readNBT(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket, CallbackInfo ci) {
 
         if (tag.hasUUID("cltUUID")) {
             this.lazytick$ownerUUID = tag.getUUID("cltUUID");
@@ -130,7 +121,6 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
             this.lazytick$syncedTier = LazyTickTier.ACTIVE;
         }
 
-
         if (tag.contains("cltExtraData")) {
             this.lazytick$extraData = tag.getInt("cltExtraData");
         } else {
@@ -149,13 +139,10 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
             this.lazyTick$forcedValue = -1;
         }
 
-        // [关键新增] 读取数值
         if (tag.contains("cltCurrentInterval")) {
             this.createLazyTick$CurrentDelayTick = tag.getInt("cltCurrentInterval");
         }
 
-        // [新增] 客户端收到数值后，自己推算颜色。
-        // 这样服务端就不需要主动广播变色了！
         if (this.level != null && this.level.isClientSide) {
             LazyTickTooltipWhiteList white = LazyTickTooltipWhiteList.getByEntity(this);
             if (white != null) {
@@ -163,7 +150,6 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
             }
         }
     }
-
 
     @Override
     public boolean lazytick$isDefaultState() {
@@ -175,7 +161,7 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
 
     @Override
     public void lazytick$setSyncedTier(int currentTick, int maxTick) {
-        //System.out.println("Update Sync Entity Data");
+
         this.lazytick$syncedTier = LazyTickTier.fromTicks(currentTick, maxTick);
     }
 
@@ -193,20 +179,14 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
         }
     }
 
-
     @Override
     public void createLazyTick$sendBlockUpdated() {
         if (this.level != null) {
             BlockState state = this.getBlockState();
-            /*if (!this.level.isClientSide) {
-                long time = this.level.getGameTime();
-                System.out.println("[Packet Check] 发送更新包 -> Pos: " + this.worldPosition + " | Time: " + time);
-            }*/
+
             this.level.sendBlockUpdated(this.worldPosition, state, state, 3);
         }
     }
-
-    // Interface
 
     @Override
     public String createLazyTick$getOwnerName() { return this.lazytick$ownerName; }
@@ -255,21 +235,17 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
         return this.createLazyTick$CurrentDelayTick;
     }
 
-    /**
-     * <p><strong>Warning：</strong> use this method directly may cause unexpected logic error.<p>
-     * You can use this method to update lazytick state:{@link LazyTickLogic#updateState(ISmartBlockEntityControl)}</p>
-     */
     @Override
     public void createLazyTick$setDelayForced(boolean isForced) {
         if (!isForced) {
             this.lazyTick$forcedValue = -1;
         } else {
             if (this.lazyTick$forcedValue == -1) {
-                // 如果有人开启了强制模式却忘了设数值，默认给个 1 防止出 Bug
+
                 this.lazyTick$forcedValue = 1;
             }
         }
-        // 保存一下(数据一致性)
+
         this.setChanged();
     }
 
@@ -283,10 +259,6 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
         return this.lazyTick$dynamicValue;
     }
 
-    /**
-     * <p><strong>Warning：</strong> use this method directly may cause unexpected logic error.<p>
-     * You can use this method to switch lazytick mode:{@link LazyTickLogic#switchMode(ISmartBlockEntityControl, boolean, int)}</p>
-     */
     @Override
     public void createLazyTick$setDynamicValue(int value) {
         if (this.lazyTick$dynamicValue != value) {
@@ -296,9 +268,9 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
                 this.lazytick$ownerName = "";
             }
 
-            if (this.level != null) this.level.blockEntityChanged(this.worldPosition); // save
+            if (this.level != null) this.level.blockEntityChanged(this.worldPosition); 
             LazyTickLogic.updateState(this);
-            this.createLazyTick$sendBlockUpdated(); // sync to client (UI render)
+            this.createLazyTick$sendBlockUpdated(); 
         }
     }
 
@@ -307,10 +279,6 @@ public abstract class SmartBlockEntityControlMixin extends BlockEntity implement
         return this.lazyTick$forcedValue;
     }
 
-    /**
-     * <p><strong>Warning：</strong> use this method directly may cause unexpected logic error.<p>
-     * You can use this method to switch lazytick mode:{@link LazyTickLogic#switchMode(ISmartBlockEntityControl, boolean, int)}</p>
-     */
     @Override
     public void createLazyTick$setForcedValue(int value) {
         if (this.lazyTick$forcedValue != value) {

@@ -5,7 +5,6 @@ import net.minecraft.world.level.material.Fluid;
 
 import java.util.Objects;
 
-// 注液器缓存键工具类
 public class SpoutCacheKey {
     private final Item item;
     private final Fluid fluid;

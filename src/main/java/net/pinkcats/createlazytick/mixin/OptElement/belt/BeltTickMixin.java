@@ -46,7 +46,6 @@ public class BeltTickMixin {
     @Shadow(remap = false)
     public void eject(TransportedItemStack stack) {}
 
-
     @Shadow(remap = false)
     protected boolean handleBeltProcessingAndCheckIfRemoved(TransportedItemStack currentItem, float nextOffset,
                                                             boolean noMovement) {return false;}
@@ -63,7 +62,7 @@ public class BeltTickMixin {
 
     @Unique
     private void createLazyTick$resetDelayTick(ISmartBlockEntityControl control) {
-        //createLazyTick$DepotDelayTick = 0;
+
         LazyTickLogic.setIntervalSafe(control, 1);
     }
 
@@ -72,7 +71,6 @@ public class BeltTickMixin {
         CLT$BeltCurrentTick = 0;
         CLT$BeltSlideTick = 0;
     }
-
 
     @Unique
     private int CLT$BeltCurrentTick = 0;
@@ -97,8 +95,6 @@ public class BeltTickMixin {
         List<TransportedItemStack> toRemove = accessor.getToRemove();
         List<TransportedItemStack> items = accessor.getItems();
 
-
-        // Added/Removed items from previous cycle
         if (createLazyTick$drainPendingTransfers(belt, toInsert, toRemove, items)) {
             createLazyTick$resetDelayCounters();
         }
@@ -117,7 +113,6 @@ public class BeltTickMixin {
                 return;}
         }
 
-        // Residual item for "smooth" transitions
         if (lazyClientItem != null) {
             if (lazyClientItem.locked)
                 lazyClientItem = null;
@@ -125,35 +120,22 @@ public class BeltTickMixin {
                 lazyClientItem.locked = true;
         }
 
-//        System.out.println(
-//                "[LazyTick] pos=" + belt.getBlockPos()
-//                        + " delay=" + BeltDelayTick
-//                        + " cur=" + BeltCurrentTick
-//                        + " toInsert=" + queuedInsertions
-//                        + " toRemove=" + queuedRemovals
-//                        + " items=" + items.size()
-//        );
-
-        // stop
         if (belt.getSpeed() == 0) {
             ci.cancel();
             return;
         }
 
-        // Reverse item collection if belt just reversed
         if (beltMovementPositive != belt.getDirectionAwareBeltMovementSpeed() > 0) {
             beltMovementPositive = !beltMovementPositive;
             Collections.reverse(items);
             belt.notifyUpdate();
-            //System.out.println("belt.notifyUpdate reserve");
+
         }
 
-        // Assuming the first entry is furthest on the belt
         TransportedItemStack stackInFront = null;
         TransportedItemStack currentItem = null;
         Iterator<TransportedItemStack> iterator = items.iterator();
 
-        // Useful stuff
         float beltSpeed = belt.getDirectionAwareBeltMovementSpeed();
         Direction movementFacing = belt.getMovementFacing();
         boolean horizontal = belt.getBlockState()
@@ -165,10 +147,8 @@ public class BeltTickMixin {
             onClient = world.isClientSide && !belt.isVirtual();
         }
 
-        // resolve ending only when items will reach it this tick
         BeltEum.Ending ending = BeltEum.Ending.UNRESOLVED;
 
-        // Loop over items
         int count = 0;
         int stop_count = 0;
         while (iterator.hasNext()) {
@@ -178,10 +158,7 @@ public class BeltTickMixin {
             currentItem.prevBeltPosition = currentItem.beltPosition;
             currentItem.prevSideOffset = currentItem.sideOffset;
 
-
-
             count = count + currentItem.stack.getCount();
-
 
             if (currentItem.stack.isEmpty()) {
                 iterator.remove();
@@ -193,20 +170,15 @@ public class BeltTickMixin {
             if (onClient)
                 movement *= ServerSpeedProvider.get();
 
-            //System.out.println(movement);
-
-            // Don't move if held by processing (client)
             if (world != null && world.isClientSide && currentItem.locked) {
                 continue;
             }
 
-            // Don't move if held by external components
             if (currentItem.lockedExternally) {
                 currentItem.lockedExternally = false;
                 continue;
             }
 
-            // Don't move if other items are waiting in front
             boolean noMovement = false;
             float currentPos = currentItem.beltPosition;
             if (stackInFront != null) {
@@ -218,12 +190,10 @@ public class BeltTickMixin {
                         beltMovementPositive ? Math.min(movement, diff - spacing) : Math.max(movement, diff + spacing);
             }
 
-            // Don't move beyond the edge
             float diffToEnd = beltMovementPositive ? belt.beltLength - currentPos : -currentPos;
             if (Math.abs(diffToEnd) < Math.abs(movement) + 1) {
                 if (ending == BeltEum.Ending.UNRESOLVED)
                     ending = createLazyTick$resolveEnding();
-
 
                 diffToEnd += beltMovementPositive ? -ending.margin : ending.margin;
             }
@@ -231,68 +201,56 @@ public class BeltTickMixin {
             float limitedMovement =
                     beltMovementPositive ? Math.min(movement, diffToEnd) : Math.max(movement, diffToEnd);
 
-            //System.out.println( movement+"   "+diffToEnd+"  "+limitedMovement);
             float nextOffset = currentItem.beltPosition + limitedMovement;
 
             if (Math.abs(limitedMovement) < 0.00001){
                 stop_count = stop_count + currentItem.stack.getCount();
             }
 
-
-            ///System.out.println(nextOffset+" "+limitedMovement +" "+ movement +" "+ ServerSpeedProvider.get());
-            //System.out.println(limitedMovement);
-
-            // Belt item processing
             if (!onClient && horizontal) {
                 ItemStack item = currentItem.stack;
                 if (handleBeltProcessingAndCheckIfRemoved(currentItem, nextOffset, noMovement)) {
 
                     iterator.remove();
-                    //System.out.println("belt.notifyUpdate");
+
                     belt.notifyUpdate();
                     continue;
                 }
                 if (item != currentItem.stack) {
-                    //System.out.println("belt.notifyUpdate");
+
                     belt.notifyUpdate();
                 }
                 if (currentItem.locked)
                     continue;
             }
 
-            // Belt Funnels
             if (BeltFunnelInteractionHandler.checkForFunnels(OrginalBeltInventory, currentItem, nextOffset)) {
-                //System.out.println("Funnels");
+
                 continue;
             }
 
             if (noMovement)
                 continue;
 
-            // Belt Tunnels
             if (BeltTunnelInteractionHandler.flapTunnelsAndCheckIfStuck(OrginalBeltInventory, currentItem, nextOffset)) {
-                //System.out.println("Tunnels");
+
                 continue;
             }
 
-            // Horizontal Crushing Wheels
             if (BeltCrusherInteractionHandler.checkForCrushers(OrginalBeltInventory, currentItem, nextOffset)) {
-                //System.out.println("Crushing Wheels");
+
                 continue;
             }
 
-            // Apply Movement
             currentItem.beltPosition += limitedMovement;
             float diffToMiddle = currentItem.getTargetSideOffset() - currentItem.sideOffset;
             currentItem.sideOffset += Mth.clamp(diffToMiddle * Math.abs(limitedMovement) * 6f, -Math.abs(diffToMiddle),
                     Math.abs(diffToMiddle));
             currentPos = currentItem.beltPosition;
 
-            // Movement successful
             if (limitedMovement == movement || onClient)
                 continue;
 
-            // End reached
             int lastOffset = beltMovementPositive ? belt.beltLength - 1 : 0;
             BlockPos nextPosition = BeltHelper.getPositionForOffset(belt, beltMovementPositive ? belt.beltLength : -1);
 
@@ -308,7 +266,7 @@ public class BeltTickMixin {
                     continue;
 
                 ItemStack remainder = inputBehaviour.handleInsertion(currentItem, movementFacing, false);
-                if (remainder.equals(currentItem.stack, false))
+                if (ItemStack.isSameItemSameComponents(remainder,currentItem.stack))
                     continue;
 
                 currentItem.stack = remainder;
@@ -321,7 +279,7 @@ public class BeltTickMixin {
 
                 flapTunnel(OrginalBeltInventory, lastOffset, movementFacing, false);
                 belt.notifyUpdate();
-                //System.out.println("belt.notifyUpdate insert");
+
                 continue;
             }
 
@@ -333,14 +291,10 @@ public class BeltTickMixin {
                 iterator.remove();
                 flapTunnel(OrginalBeltInventory, lastOffset, movementFacing, false);
                 belt.notifyUpdate();
-                //System.out.println("belt.notifyUpdate eject");
 
             }
         }
-        //if (onClient)
-            //System.out.println(stop_count +"  " + count);
 
-        // equal means belt is full Use backoff
         if (stop_count == count){
                 if (CLT$BeltSlideTick < ServerConfig.getBeltDelayMax()) {
                     CLT$BeltSlideTick = CLT$BeltSlideTick + Math.max(1, CLT$BeltSlideTick / 10);
@@ -359,7 +313,6 @@ public class BeltTickMixin {
         ci.cancel();
     }
 
-
     @Unique
     private boolean createLazyTick$drainPendingTransfers(BeltBlockEntity belt, List<TransportedItemStack> toInsert,
                                                     List<TransportedItemStack> toRemove, List<TransportedItemStack> items) {
@@ -376,20 +329,14 @@ public class BeltTickMixin {
         return true;
     }
 
-
-
-
-
-    //High impact need to fix but is limited in vanilla
     @Unique
     private BeltEum.Ending createLazyTick$resolveEnding() {
-        //mes.debug("createLazyTick$resolveEnding tick");
+
         BeltInventoryAccessor accessor = (BeltInventoryAccessor) this;
         BeltBlockEntity belt = accessor.getBelt();
 
         Level world = belt.getLevel();
         BlockPos nextPosition = BeltHelper.getPositionForOffset(belt, beltMovementPositive ? belt.beltLength : -1);
-
 
         DirectBeltInputBehaviour inputBehaviour =
                 BlockEntityBehaviour.get(world, nextPosition, DirectBeltInputBehaviour.TYPE);
@@ -402,6 +349,5 @@ public class BeltTickMixin {
 
         return BeltEum.Ending.EJECT;
     }
-
 
 }

@@ -1,6 +1,5 @@
 package net.pinkcats.createlazytick.mixin.OptElement.fluid;
 
-
 import com.simibubi.create.content.fluids.FluidNetwork;
 import me.lucko.spark.lib.asm.Opcodes;
 import net.pinkcats.createlazytick.config.ServerConfig;
@@ -8,7 +7,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
-
 
 @Mixin(value = FluidNetwork.class, remap = false)
     public abstract class FluidNetworkTransferSpeedMixin {
@@ -30,6 +28,3 @@ import org.spongepowered.asm.mixin.injection.Redirect;
             this.transferSpeed = (int) Math.max(1, original * mult);
         }
     }
-
-
-

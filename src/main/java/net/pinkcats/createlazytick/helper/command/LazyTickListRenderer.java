@@ -14,7 +14,6 @@ import java.util.Map;
 
 public class LazyTickListRenderer {
 
-    // 渲染标题头
     public static void renderHeader(CommandSourceStack source, int page, int totalPages,
                                     int total, String sortStr) {
         String safeSortStr = (sortStr == null || sortStr.isEmpty()) ? "default" : sortStr;
@@ -56,19 +55,14 @@ public class LazyTickListRenderer {
         source.sendSystemMessage(header);
     }
 
-    // 渲染单行条目
     public static void renderItem(CommandSourceStack source, int index,
                                   Map.Entry<BlockPos, LazyTickStatCache> entry, boolean isLoaded) {
         BlockPos pos = entry.getKey();
         LazyTickStatCache info = entry.getValue();
 
-
         ChatFormatting nameColor = isLoaded ? ChatFormatting.AQUA : ChatFormatting.DARK_AQUA;
 
-        // 获取本地方块名称
         Component localizedName = info.getDisplayName();
-
-        // 构建悬停文本 (HoverText)
 
         ChatFormatting modeColor = info.isForced() ? ChatFormatting.RED : ChatFormatting.AQUA;
 
@@ -107,7 +101,6 @@ public class LazyTickListRenderer {
 
         String tpCommand = "/tp @s " + pos.getX() + " " + pos.getY() + " " + pos.getZ();
 
-        // 构建列表行(1行)
         MutableComponent listEntry = mes.CharM(" " + index + ". ")
                 .withStyle(ChatFormatting.GRAY)
                 .append((isLoaded ? Component.empty()
@@ -126,21 +119,18 @@ public class LazyTickListRenderer {
         source.sendSystemMessage(listEntry);
     }
 
-    // 渲染翻页导航栏(内部生成带参数自动命令)
     public static void renderNavBar(CommandSourceStack source, int page, int totalPages,
                                     String sortStr, boolean isReverse, String filterStr) {
-        source.sendSystemMessage(mes.spaces(0)); // 空行分隔
-        MutableComponent navBar = (MutableComponent) mes.spaces(6); // 缩进
+        source.sendSystemMessage(mes.spaces(0)); 
+        MutableComponent navBar = (MutableComponent) mes.spaces(6); 
 
-        // 上一页
         if (page > 1) {
             appendNavButton(navBar, "createlazytick.nav.prev", page - 1, sortStr, isReverse, filterStr);
         } else {
-            navBar.append(Component.translatable("createlazytick.nav.prev").withStyle(ChatFormatting.DARK_GRAY)); // 不可用状态
+            navBar.append(Component.translatable("createlazytick.nav.prev").withStyle(ChatFormatting.DARK_GRAY)); 
         }
         navBar.append(mes.CharM("   |   ").withStyle(ChatFormatting.GRAY));
 
-        // 下一页
         if (page < totalPages) {
             appendNavButton(navBar, "createlazytick.nav.next", page + 1, sortStr, isReverse, filterStr);
         } else {
@@ -150,7 +140,6 @@ public class LazyTickListRenderer {
         source.sendSystemMessage(navBar);
     }
 
-    // 生成翻页按钮
     private static void appendNavButton(MutableComponent parent, String textKey, int targetPage,
                                         String sortStr, boolean isReverse, String filterStr) {
         String safeSort = (sortStr == null || sortStr.isEmpty()) ? "default" : sortStr;
@@ -159,7 +148,6 @@ public class LazyTickListRenderer {
         safeSort = quoteIfNecessary(safeSort);
         safeFilter = quoteIfNecessary(safeFilter);
 
-        // /createlazytick list <page> <sortMode> <isReverse> <filter>
         String command = "/createlazytick list " + targetPage + " complex " + safeSort + " " + isReverse + " " + safeFilter;
 
         parent.append(Component.translatable(textKey)
@@ -175,7 +163,7 @@ public class LazyTickListRenderer {
 
     private static String quoteIfNecessary(String input) {
         if (input.contains(" ")) {
-            // 如果包含空格,必须包裹引号,并且把内部原有的引号转义
+
             return "\"" + input.replace("\"", "\\\"") + "\"";
         }
         return input;

@@ -32,7 +32,6 @@ import java.util.List;
 @Mixin(value = ItemDrainBlockEntity.class,remap = false)
 public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
 
-    // 当前实际生效的冷却倒计时
     @Unique
     private int createLazyTick$itemDrainTick = 0;
 
@@ -57,29 +56,23 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
         NetworkSyncHelper.createLazyTick$syncPacketData(control,
                 this.level, this.worldPosition, control.createLazyTick$getCurrentSuperTick(), ServerConfig.getItemDrainDelayMax());
 
-        /*if(!level.isClientSide()) {
-            System.out.println("ItemDrain:" + createLazyTick$itemDrainTick + "|" + control.createLazyTick$getLazyTickInterval());
-        }*/
-
         ItemDrainAccessor accessor = (ItemDrainAccessor) this;
         TransportedItemStack heldItem = accessor.getHeldItem();
         int processingTicks = accessor.getProcessingTicks();
 
         if (heldItem == null) {
             accessor.setProcessingTicks(0);
-            createLazyTick$resetDelayTick(); // 重置等待时间
+            createLazyTick$resetDelayTick(); 
             ci.cancel();
             return;
         }
 
-        // 无论是物品输出堵塞还是流体倾倒堵塞，有冷却就跳过
         createLazyTick$itemDrainTick++;
         if (createLazyTick$itemDrainTick < control.createLazyTick$getCurrentSuperTick()) {
             ci.cancel();
             return;
         }
         createLazyTick$itemDrainTick = 0;
-        // ----------------
 
         boolean onClient = level != null && level.isClientSide && !isVirtual();
 
@@ -88,7 +81,6 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
             return;
         }
 
-        // 如果需要处理倒水(>0)
         if (processingTicks > 0) {
             heldItem.prevBeltPosition = .5f;
             boolean wasAtBeginning = processingTicks == ItemDrainBlockEntity.FILLING_TIME;
@@ -97,7 +89,6 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
                 int interval = control.createLazyTick$getCurrentSuperTick();
                 boolean success = createLazyTick$performLazyDrain(accessor, interval);
 
-                // 1. 如果处理中断 (返回 false)，直接退出
                 if (!success) {
                     accessor.setProcessingTicks(0);
                     notifyUpdate();
@@ -105,15 +96,12 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
                     return;
                 }
 
-                // 2. 处理虽然成功，但储量满了 (Ticks 回到 20)
                 if (accessor.getProcessingTicks() == ItemDrainBlockEntity.FILLING_TIME) {
-                    createLazyTick$applyBackoff(); // 应用退避
+                    createLazyTick$applyBackoff(); 
                     ci.cancel();
                     return;
                 }
 
-                // 检查是否还没倒完 (Ticks > 0)
-                // 如果 == 0,则倒完了,直接向下进入位移逻辑
                 if (accessor.getProcessingTicks() > 0) {
                     createLazyTick$resetDelayTick();
                     if (wasAtBeginning != (accessor.getProcessingTicks() == ItemDrainBlockEntity.FILLING_TIME))
@@ -132,8 +120,6 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
             return;
         }
 
-
-        //original method
         heldItem.prevBeltPosition = heldItem.beltPosition;
         heldItem.prevSideOffset = heldItem.sideOffset;
 
@@ -145,10 +131,10 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
         boolean crossingCenter = heldItem.beltPosition < 0.5f && targetPos >= 0.5f;
 
         if (crossingCenter && GenericItemEmptying.canItemBeEmptied(level, heldItem.stack)) {
-            // 流体桶且正要经过中间 -> 设置为0.5,处理倒液体
+
             heldItem.beltPosition = 0.5f;
         } else {
-            // 废料/已处理 -> 完全位移补偿
+
             heldItem.beltPosition = targetPos;
         }
 
@@ -172,7 +158,6 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
                         heldItem.stack = tryExportingToBeltFunnel;
                     notifyUpdate();
 
-                    // 成功部分输出,重置冷却逻辑
                     createLazyTick$resetDelayTick();
 
                     ci.cancel();
@@ -180,7 +165,7 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
                 }
                 if (!tryExportingToBeltFunnel.isEmpty()) {
 
-                    createLazyTick$applyBackoff(); // 漏斗阻塞,应用退避
+                    createLazyTick$applyBackoff(); 
                     ci.cancel();
                     return;
 
@@ -209,22 +194,20 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
                     accessor.setHeldItem(null);
                     notifyUpdate();
 
-                    // 成功抛出物品,重置
                     createLazyTick$resetDelayTick();
                 } else {
-                    createLazyTick$applyBackoff(); // 物理(其他类别方块)阻塞,应用退避
+                    createLazyTick$applyBackoff(); 
                 }
                 ci.cancel();
                 return;
             }
 
             if (!directBeltInputBehaviour.canInsertFromSide(side)) {
-                createLazyTick$applyBackoff(); // 接口拒绝,应用退避
+                createLazyTick$applyBackoff(); 
                 ci.cancel();
                 return;
             }
 
-            // 核心卡顿点?
             ItemStack returned = directBeltInputBehaviour.handleInsertion(heldItem.copy(), side, false);
 
             if (returned.isEmpty()) {
@@ -233,26 +216,22 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
                 accessor.setHeldItem(null);
                 notifyUpdate();
 
-                // 完全成功(物品没了),重置
                 createLazyTick$resetDelayTick();
 
                 ci.cancel();
                 return;
             }
 
-            // 完全失败检测(物品数量数量没变)
             if (returned.getCount() == heldItem.stack.getCount()) {
-                createLazyTick$applyBackoff(); // 插入失败,懒加载
+                createLazyTick$applyBackoff(); 
                 ci.cancel();
                 return;
             }
 
-            // 部分插入成功(数量变化)
             if (returned.getCount() != heldItem.stack.getCount()) {
                 heldItem.stack = returned;
                 notifyUpdate();
 
-                //能够正常运行,正常加载
                 createLazyTick$resetDelayTick();
 
                 ci.cancel();
@@ -300,47 +279,33 @@ public abstract class ItemDrainLazyTickMixin extends SmartBlockEntity {
         LazyTickLogic.setIntervalSafe(control, 1);
     }
 
-
-    /**
-     * 封装了跨越关键帧(5 ticks)时的模拟与执行逻辑(修复关于倒液和物品延迟过长的问题)
-     * @return true=流程正常结束(需进一步检查是否装满); false=流程中断(物品消失/空了)
-     */
     @Unique
     private static boolean createLazyTick$performLazyDrain(ItemDrainAccessor accessor, int interval) {
         int currentTicks = accessor.getProcessingTicks();
         int targetTicks = Math.max(0, currentTicks - interval);
 
-        // 是否跨越了倒水阈值 (5 tick) 原版:>5 (检查), ==5 (e执行), <5 (动画)
         boolean crossingThreshold = currentTicks > 5 && targetTicks <= 5;
 
-        // 如果需要倒...(跨越阈值)
         if (crossingThreshold) {
-            // 1. 强制触发模拟检查
+
             accessor.setProcessingTicks(6);
             if (!accessor.invokeContinueProcessing()) {
-                return false; // 物品被移除了，中断
+                return false; 
             }
 
-            // 容量满了Ticks 会被重置回 20 (FILLING_TIME)
-            // 停止，不倒水
             if (accessor.getProcessingTicks() == ItemDrainBlockEntity.FILLING_TIME) {
-                return true; // 返回 true,由调用者处理"满了"的情况
+                return true; 
             }
 
-            // 2. 容量未满且物品正常,强制触发倒水
             accessor.setProcessingTicks(5);
             if (!accessor.invokeContinueProcessing()) {
-                return false; // 倒水后如果物品意外消失
+                return false; 
             }
 
-            // 检查通过且成功倒水后,应用计时器
         }
 
-        // 3. 应用剩余时间
-        // 无论是跨越了阈值，还是普通倒计时，最后都定位到目标时间
         accessor.setProcessingTicks(targetTicks);
 
-        // 执行动画逻辑
         return accessor.invokeContinueProcessing();
     }
 }

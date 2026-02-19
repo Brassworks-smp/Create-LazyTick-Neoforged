@@ -1,6 +1,5 @@
 package net.pinkcats.createlazytick.mixin.OptElement.fluid;
 
-
 import com.simibubi.create.content.fluids.FluidTransportBehaviour;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
@@ -13,14 +12,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-
 @Mixin(value = FluidTransportBehaviour.class, remap = false)
 public class FluidLazyTickMixin extends BlockEntityBehaviour {
 
-
     @Shadow
     public static final BehaviourType<FluidTransportBehaviour> TYPE = new BehaviourType<>();
-
 
     public FluidLazyTickMixin(SmartBlockEntity be) {
         super(be);
@@ -46,6 +42,5 @@ public class FluidLazyTickMixin extends BlockEntityBehaviour {
         }
         CLT$pipeTick =0;
     }
-
 
 }

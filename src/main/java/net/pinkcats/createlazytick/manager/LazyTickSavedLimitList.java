@@ -1,5 +1,6 @@
 package net.pinkcats.createlazytick.manager;
 
+import net.minecraft.core.HolderLookup; 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -15,10 +16,9 @@ public class LazyTickSavedLimitList extends SavedData {
 
     private static final String DATA_FILE_NAME = "createlazytick_limits";
 
-    // 存储玩家限制: 0 = 封禁, >0 = 限制个数, 不存在 = 无限制
     private final Map<UUID, Integer> playerLimits = new HashMap<>();
 
-    public static LazyTickSavedLimitList load(CompoundTag nbt) {
+    public static LazyTickSavedLimitList load(CompoundTag nbt, HolderLookup.Provider provider) {
         LazyTickSavedLimitList data = new LazyTickSavedLimitList();
         if (nbt.contains("PlayerLimits", Tag.TAG_LIST)) {
             ListTag list = nbt.getList("PlayerLimits", Tag.TAG_COMPOUND);
@@ -34,7 +34,8 @@ public class LazyTickSavedLimitList extends SavedData {
     }
 
     @Override
-    public @NotNull CompoundTag save(@NotNull CompoundTag nbt) {
+
+    public @NotNull CompoundTag save(@NotNull CompoundTag nbt, HolderLookup.Provider provider) {
         ListTag list = new ListTag();
         playerLimits.forEach((uuid, limit) -> {
             if (limit >= 0) {
@@ -67,9 +68,9 @@ public class LazyTickSavedLimitList extends SavedData {
 
     @SuppressWarnings("resource")
     public static LazyTickSavedLimitList get(ServerLevel level) {
+
         return level.getServer().overworld().getDataStorage().computeIfAbsent(
-                LazyTickSavedLimitList::load,
-                LazyTickSavedLimitList::new,
+                new SavedData.Factory<>(LazyTickSavedLimitList::new, LazyTickSavedLimitList::load),
                 DATA_FILE_NAME
         );
     }

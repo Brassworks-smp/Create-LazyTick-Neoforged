@@ -2,33 +2,28 @@ package net.pinkcats.createlazytick;
 
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.AllCreativeModeTabs;
-import net.createmod.catnip.config.ui.BaseConfigScreen;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.ConfigScreenHandler;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
-import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.server.ServerStartingEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.DistExecutor;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.pinkcats.createlazytick.Register.LazyTickItem;
 import net.pinkcats.createlazytick.config.ServerConfig;
 import net.pinkcats.createlazytick.config.ClientConfig;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Field;
-
 import static net.pinkcats.createlazytick.Register.LazyTickCommand.RegisterCLTCommand;
 
-// The value here should match an entry in the META-INF/mods.toml file
 @Mod(CreateLazyTick.MODID)
 public class CreateLazyTick {
     public static final String MODID = "createlazytick";
@@ -39,89 +34,47 @@ public class CreateLazyTick {
         return ResourceLocation.parse(Location);
     }
     public static ResourceLocation DropResourceLocation(String NameSpace, String Path){
-        return ResourceLocation.fromNamespaceAndPath(NameSpace,Path);
+        return ResourceLocation.fromNamespaceAndPath(NameSpace, Path);
     }
 
-    /** If you can't use level.isClientSide(),use this.</p>
-     * Especially for LazyTickScrollBehaviour.addTo()
-     * **/
     public static boolean isClient() {
-        return net.minecraftforge.fml.loading.FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT;
+        return FMLEnvironment.dist == Dist.CLIENT;
     }
 
-
-    public CreateLazyTick() {
-
-        // Only for 1.20.1 forge
-        ModLoadingContext modLoadingContext = getModLoadingContextViaReflection();
-        FMLJavaModLoadingContext modContext = modLoadingContext.extension();
-        IEventBus modEventBus = modContext.getModEventBus();
+    public CreateLazyTick(IEventBus modEventBus, ModContainer modContainer) {
 
         LazyTickItem.register(modEventBus);
 
-
         modEventBus.addListener(this::commonSetup);
-        MinecraftForge.EVENT_BUS.register(this);
 
-        modLoadingContext.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
-        modLoadingContext.registerConfig(ModConfig.Type.SERVER, ServerConfig.SPEC);
+        NeoForge.EVENT_BUS.register(this);
 
-        DistExecutor.safeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
-                () -> net.pinkcats.createlazytick.Register.ClientInit::initClient
-        );
+        modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
+        modContainer.registerConfig(ModConfig.Type.SERVER, ServerConfig.SPEC);
 
-
+        if (FMLEnvironment.dist.isClient()) {
+            net.pinkcats.createlazytick.Register.ClientInit.initClient();
+        }
     }
-
 
     private void commonSetup(final FMLCommonSetupEvent event) {
     }
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
-
     }
-
 
     @SubscribeEvent
     public void onCommandRegister(RegisterCommandsEvent event) {
         RegisterCLTCommand(event);
     }
 
-
-    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    @EventBusSubscriber(modid = MODID, value = Dist.CLIENT)
     public static class ClientModEvents {
 
         @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event)
-        {
-
+        public static void onClientSetup(FMLClientSetupEvent event) {
         }
 
-        @SubscribeEvent
-        public static void addToCreateTabs(BuildCreativeModeTabContentsEvent event) {
-            if (event.getTab() == AllCreativeModeTabs.BASE_CREATIVE_TAB.get()) {
-                event.accept(LazyTickItem.CLOCK.get());
-            }
-        }
-    }
-
-
-
-
-    //Tool Func
-
-
-    @SuppressWarnings("unchecked")
-    public static ModLoadingContext getModLoadingContextViaReflection() {
-        try {
-            Field contextField = ModLoadingContext.class.getDeclaredField("context");
-            contextField.setAccessible(true);
-            ThreadLocal<ModLoadingContext> contextThreadLocal = (ThreadLocal<ModLoadingContext>) contextField.get(null);
-            return contextThreadLocal.get();
-
-        } catch (Exception e) {
-            throw new RuntimeException("CreateLazyTick got ERROR in Init:", e);
-        }
     }
 }

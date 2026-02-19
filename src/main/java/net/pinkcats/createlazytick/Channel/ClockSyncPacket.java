@@ -4,7 +4,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import static net.pinkcats.createlazytick.CreateLazyTick.DropResourceLocation;
+import static net.pinkcats.createlazytick.CreateLazyTick.MODID;
 import net.pinkcats.createlazytick.Gui.mes;
 import net.pinkcats.createlazytick.bridge.Create.ISmartBlockEntityControl;
 
@@ -12,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-public class ClockSyncPacket {
+public class ClockSyncPacket implements CustomPacketPayload {
 
     private final BlockPos pos;
     private final String dimension;
@@ -21,27 +25,25 @@ public class ClockSyncPacket {
 
     public static List<ClientData> PacketCache = new ArrayList<>();
 
-    // 构造函数 1: 纯查询 (Tooltip 用)
     public ClockSyncPacket(BlockPos pos) {
         this.pos = pos;
         this.dimension = "";
         this.extraData = 0;
-        this.isQuery = true; // 标记为查询
+        this.isQuery = true; 
     }
 
-    // [保留] 构造函数 2: 旧逻辑兼容 (设置用)
     public ClockSyncPacket(int extraData , String dimension, BlockPos pos) {
         this.dimension = dimension;
         this.pos = pos;
         this.extraData = extraData;
-        this.isQuery = false; // 标记为设置
+        this.isQuery = false; 
     }
 
     public ClockSyncPacket(FriendlyByteBuf buf) {
         dimension = buf.readUtf();
         pos = buf.readBlockPos();
         extraData = buf.readInt();
-        isQuery = buf.readBoolean(); // [新增] 读取标记
+        isQuery = buf.readBoolean(); 
     }
 
     public void encode(FriendlyByteBuf buf) {
@@ -50,18 +52,16 @@ public class ClockSyncPacket {
         buf.writeInt(extraData);
         buf.writeBoolean(isQuery);
     }
+    public static final Type<ClockSyncPacket> TYPE = new Type<>(DropResourceLocation(MODID, "dimension_to_server"));
 
-    public void handle(Supplier<NetworkEvent.Context> supplier) {
-        NetworkEvent.Context ctx = supplier.get();
+    public static final StreamCodec<FriendlyByteBuf, ClockSyncPacket> STREAM_CODEC = StreamCodec.ofMember(
+            ClockSyncPacket::encode, ClockSyncPacket::new
+    );
 
-        ctx.setPacketHandled(true);
-
-        ServerPlayer player = ctx.getSender();
-        if (player == null) return;
-
-        // Move to Main loop
+    public void handle(IPayloadContext ctx) {
         ctx.enqueueWork(() -> {
-            // 查询模式
+            if (!(ctx.player() instanceof ServerPlayer player)) return;
+
             if (isQuery) {
                 Level level = player.level();
                 if (level.isLoaded(pos)) {
@@ -74,13 +74,11 @@ public class ClockSyncPacket {
 
             ClientData data = new ClientData(extraData, dimension, pos);
 
-            // Packet Lock
             if (PacketCache.size() > 80) {
                 mes.error("ServerPacket Cargo is full. This shouldn't happen!");
                 PacketCache.clear();
             }
 
-            // Remove the same
             for (ClientData existingData : PacketCache) {
                 if (data.isSimilar(existingData))
                     return;
@@ -89,7 +87,6 @@ public class ClockSyncPacket {
         });
     }
 
-
     @Override
     public String toString() {
         return "Packet{" +
@@ -97,5 +94,10 @@ public class ClockSyncPacket {
                 ", pos="  + pos +
                 ", extraData="  + extraData +
                 '}';
+    }
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

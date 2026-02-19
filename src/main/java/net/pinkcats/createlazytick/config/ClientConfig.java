@@ -1,37 +1,36 @@
 package net.pinkcats.createlazytick.config;
 
-import net.minecraftforge.common.ForgeConfigSpec;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class ClientConfig {
-    private static final ForgeConfigSpec.Builder BUILDER = new ForgeConfigSpec.Builder();
-    public static final ForgeConfigSpec SPEC;
+    private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
+    public static final ModConfigSpec SPEC;
 
-    // 时间显示格式枚举
     public enum TimeFormat {
-        TICKS,   // 仅显示刻: 60t
-        SECONDS, // 仅显示秒: 3.0s
-        BOTH     // 同时显示: 60t | 3.0s
+        TICKS,   
+        SECONDS, 
+        BOTH     
     }
 
     public enum ModeFormat {
-        TEXT,   // 仅显示文本: [Mode text]
-        NUMBER, // 仅显示数字: (xx %|xx (t/s))
-        BOTH    // 同时显示: (1st line)[text] (2nd line)number
+        TEXT,   
+        NUMBER, 
+        BOTH    
     }
 
     public enum TierFormat {
-        BAR,   // 仅显示状态条: [|||||···|||||]
-        NUMBER, // 仅显示数字: (xx %|xx (t/s))
-        BOTH    // 同时显示: (1st line)[bar] (2nd line)number
+        BAR,   
+        NUMBER, 
+        BOTH    
     }
 
-    private static final ForgeConfigSpec.EnumValue<TimeFormat> TIME_FORMAT;
-    private static final ForgeConfigSpec.EnumValue<ModeFormat> MODE_FORMAT;
-    private static final ForgeConfigSpec.EnumValue<TierFormat> TIER_FORMAT;
+    private static final ModConfigSpec.EnumValue<TimeFormat> TIME_FORMAT;
+    private static final ModConfigSpec.EnumValue<ModeFormat> MODE_FORMAT;
+    private static final ModConfigSpec.EnumValue<TierFormat> TIER_FORMAT;
 
-    private static final ForgeConfigSpec.BooleanValue SHOW_MODE_TOOLTIP;
-    private static final ForgeConfigSpec.BooleanValue SHOW_TIER_TOOLTIP;
-    private static final ForgeConfigSpec.BooleanValue SHOW_DESCRIPTION_TOOLTIP;
+    private static final ModConfigSpec.BooleanValue SHOW_MODE_TOOLTIP;
+    private static final ModConfigSpec.BooleanValue SHOW_TIER_TOOLTIP;
+    private static final ModConfigSpec.BooleanValue SHOW_DESCRIPTION_TOOLTIP;
 
     static {
         BUILDER.comment("Client-side Visual Settings").push("ui-visual");

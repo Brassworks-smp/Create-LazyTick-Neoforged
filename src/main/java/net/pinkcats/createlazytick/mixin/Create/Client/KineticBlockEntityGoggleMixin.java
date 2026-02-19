@@ -21,7 +21,7 @@ public class KineticBlockEntityGoggleMixin {
     @Unique
     private int createLazyTick$tick = 0;
 
-    @SuppressWarnings("ConstantConditions")  //压制instanceof警告
+    @SuppressWarnings("ConstantConditions")  
     @Inject(method = "addToGoggleTooltip", at = @At("RETURN"), cancellable = true)
     private void lazytick$appendKineticInfo(List<Component> tooltip, boolean isPlayerSneaking, CallbackInfoReturnable<Boolean> cir) {
 

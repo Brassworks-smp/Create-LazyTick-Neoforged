@@ -15,30 +15,28 @@ import net.pinkcats.createlazytick.config.ServerConfig;
 import java.util.function.Supplier;
 
 public enum LazyTickTooltipWhiteList {
-    // Kinetic
+
     ARM(ArmBlockEntity.class, ServerConfig::getArmDelayMax, Type.KINETIC),
     BELT(BeltBlockEntity.class, ServerConfig::getBeltDelayMax, Type.KINETIC),
     CRAFTER(MechanicalCrafterBlockEntity.class, ServerConfig::getCrafterRedstoneDelayMax, Type.KINETIC),
     PUMP(PumpBlockEntity.class, ServerConfig::getFluidDelayMax, Type.KINETIC),
     SAW(SawBlockEntity.class, ServerConfig::getSawDelayMax, Type.KINETIC),
 
-    // Smart
     FUNNEL(FunnelBlockEntity.class, ServerConfig::getFunnelDelayMax, Type.SMART),
     DEPOT(DepotBlockEntity.class, ServerConfig::getDepotDelayMax, Type.SMART),
     PIPE(FluidPipeBlockEntity.class, ServerConfig::getFluidDelayMax, Type.SMART),
 
-    // Special(have override)
     DRAIN(ItemDrainBlockEntity.class, ServerConfig::getItemDrainDelayMax, Type.SPECIAL),
     CHUTE(ChuteBlockEntity.class, ServerConfig::getChuteDelayMax, Type.SMART);
 
     private final Class<?> targetClass;
     private final Supplier<Integer> maxTickSupplier;
-    private final Type type; // 新增字段
+    private final Type type; 
 
     public enum Type {
-        KINETIC, // 继承自 KineticBlockEntity
-        SMART,    // 仅继承自 SmartBlockEntity
-        SPECIAL   // 必须单独处理的方块实体类
+        KINETIC, 
+        SMART,    
+        SPECIAL   
     }
 
     LazyTickTooltipWhiteList(Class<?> targetClass, Supplier<Integer> maxTickSupplier, Type type) {
@@ -59,7 +57,6 @@ public enum LazyTickTooltipWhiteList {
     public int getMaxTick() {
         return maxTickSupplier.get();
     }
-
 
     public Type getType() {
         return type;

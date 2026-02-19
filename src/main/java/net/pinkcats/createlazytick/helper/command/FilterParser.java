@@ -15,11 +15,6 @@ import java.util.regex.Pattern;
 
 public class FilterParser {
 
-    // 正则表达式循环匹配关键字组
-    // 组1 (Key): 字母(允许引号包裹)
-    // 组2 (Operator): 符号 (注意 >= 要在 > 前面) (允许前后有空格)
-    // 组3 (Value): 引号包裹的内容 或 不被引号包裹的不含空格连贯字符(且不含{})
-    // (Key)(Op)(Val)
     public static final Pattern TOKEN_PATTERN = Pattern.compile("\"?([a-zA-Z]+)\"?\\s*(:|>=|<=|>|<|=)\\s*(\"[^\"]*\"|[^\"\\s,{}]+)");
     public static final Pattern TOKEN_PATTERN_FOR_SUGGESTION = Pattern.compile("^\"?([a-zA-Z]+)\"?\\s*(:|>=|<=|>|<|=)\\s*(.*)");
 
@@ -32,37 +27,31 @@ public class FilterParser {
         return parse(input, false);
     }
 
-    //解析形如 'name:mechanical_saw value>50' 的字符串
     public static Predicate<Map.Entry<BlockPos, LazyTickStatCache>> parse(String input, boolean allowEmpty) throws CommandSyntaxException {
         if (input == null) input = "";
 
-        // 剥离首尾大括号和引号 (支持 "{name:saw}" 写法)
         String trimmed = stripBracesAndQuotes(input);
 
-        // 空检查
         if (trimmed.isBlank()) {
             if (allowEmpty) {
-                // 允许空条件,意味着"全选/不筛选"(用于list)
+
                 return entry -> true;
             } else {
-                // 禁止空条件,防止误操作删库(用于reset等)
+
                 throw ERROR_EMPTY.create();
             }
         }
 
         Matcher matcher = TOKEN_PATTERN.matcher(trimmed);
 
-        // 初始逻辑为 true (全通过)
         Predicate<Map.Entry<BlockPos, LazyTickStatCache>> finalPredicate = entry -> true;
         boolean hasAnyValidFilter = false;
         int lastMatchEnd = 0;
 
-        // 弃用粗暴分割,改用find
         while (matcher.find()) {
             hasAnyValidFilter = true;
             String gap = trimmed.substring(lastMatchEnd, matcher.start());
 
-            // 如果间隙里包含除了空格和逗号以外的字符就报错
             if (!gap.isBlank() && !gap.matches("[,\\s]+")) {
                 throw new SimpleCommandExceptionType(
                         Component.translatable(
@@ -71,14 +60,12 @@ public class FilterParser {
                 ).create();
             }
 
-
             lastMatchEnd = matcher.end();
 
-            // 提取数据 (此时已经确保格式正确)
             String key = matcher.group(1).toLowerCase();
             String op = matcher.group(2);
             String rawVal = matcher.group(3);
-            // 去双引号
+
             String val = stripQuotes(rawVal);
 
             try {
@@ -114,7 +101,6 @@ public class FilterParser {
         return finalPredicate;
     }
 
-    // 创建单个筛选条件
     private static Predicate<Map.Entry<BlockPos, LazyTickStatCache>> createSingleFilter(String key, String op, String val) throws CommandSyntaxException {
         switch (key) {
             case "name", "id" -> {
@@ -189,7 +175,7 @@ public class FilterParser {
 
     private static boolean ApplyCompare(long a, long b, String op) {
         return switch (op) {
-            // 对于"时间年龄(time/Age)"，大于(>)意味着"更老"，小于(<)意味着"更新"
+
             case ">" -> a > b;
             case "<" -> a < b;
             case ">=" -> a >= b;
@@ -204,12 +190,12 @@ public class FilterParser {
         boolean changed = true;
         while (changed) {
             changed = false;
-            // 剥引号
+
             if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
                 s = s.substring(1, s.length() - 1).trim();
                 changed = true;
             }
-            // 剥大括号
+
             if (s.length() >= 2 && s.startsWith("{") && s.endsWith("}")) {
                 s = s.substring(1, s.length() - 1).trim();
                 changed = true;

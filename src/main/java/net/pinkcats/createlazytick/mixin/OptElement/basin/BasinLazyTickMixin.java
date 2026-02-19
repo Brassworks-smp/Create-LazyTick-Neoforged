@@ -20,16 +20,14 @@ public abstract class BasinLazyTickMixin extends SmartBlockEntity implements IBa
 
     @Deprecated
     @Shadow
-    private boolean contentsChanged; // 引用原版的脏标记字段
+    private boolean contentsChanged; 
 
     @Unique
     private long optimization$inventoryVersion = 0;
 
-    // 缓存字段，模仿新版 Create (6.0.8有,编译也通过,但是游戏运行会炸,只能模仿)的行为 (Tick start -> null)
     @Unique
     private BlazeBurnerBlock.HeatLevel lazytick$cachedHeatLevel = null;
 
-    // Mixin 继承 SmartBlockEntity 需要匹配构造函数
     public BasinLazyTickMixin(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
@@ -39,10 +37,6 @@ public abstract class BasinLazyTickMixin extends SmartBlockEntity implements IBa
         return optimization$inventoryVersion;
     }
 
-
-    //手动实现获取热量等级的方法
-    //复刻了新版 BasinBlockEntity.getHeatLevel() 的逻辑
-    //包含 NPE 检查和单 Tick 缓存机制
     @Override
     public BlazeBurnerBlock.HeatLevel optimization$getHeatLevel() {
         if (lazytick$cachedHeatLevel == null) {
@@ -55,11 +49,10 @@ public abstract class BasinLazyTickMixin extends SmartBlockEntity implements IBa
 
     @Inject(method = "tick", at = @At("HEAD"), remap = false)
     private void clt$onTick(CallbackInfo ci) {
-        // 每 Tick 开始时重置缓存，确保数据实时性
+
         lazytick$cachedHeatLevel = null;
     }
 
-    // Advanced version change can fix tick jump
     @Inject(method = "notifyChangeOfContents", at = @At("HEAD"), remap = false)
     private void clt$onNotifyChange(CallbackInfo ci) {
         if (!ServerConfig.getEnableLazyTick() || !ServerConfig.getEnableLazyBasin()) return;

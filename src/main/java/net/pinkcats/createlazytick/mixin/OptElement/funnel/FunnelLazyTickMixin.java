@@ -72,7 +72,6 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
     @Shadow
     private VersionedInventoryTrackerBehaviour invVersionTracker;
 
-
     public FunnelLazyTickMixin(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
@@ -83,10 +82,8 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
     @Shadow
     protected abstract void activateExtractingBeltFunnel();
 
-
     @Shadow
     protected abstract void activateExtractor();
-
 
     @Shadow
     public abstract int getAmountToExtract();
@@ -125,14 +122,13 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
         return Funnel.Mode.INVALID;
     }
 
-
     @Unique
     private void createLazyTick$applyBackoff(ISmartBlockEntityControl control) {
         int currentLazyTickInterval = control.createLazyTick$getCurrentSuperTick();
         int newLazyTickInterval = LazyTickLogic.computeNextInterval(
                 control, currentLazyTickInterval, ServerConfig.getFunnelDelayMax()
         );
-        // mes.error(newLazyTickInterval);
+
         if (newLazyTickInterval != currentLazyTickInterval) {
             LazyTickLogic.setIntervalSafe(control, newLazyTickInterval);
         }
@@ -151,12 +147,8 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
         LazyTickLogic.setIntervalSafe(control, defaultTick);
     }
 
-
-
     @Unique
     private int CLT$FunnelDelayTick = 0;
-
-
 
     @Inject(method = "tick" ,at=@At("HEAD" ),cancellable = true,remap = false)
     public void tick(CallbackInfo ci) {
@@ -174,7 +166,7 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
 
         flap.tickChaser();
         super.tick();
-        // for interface
+
         CLT$FunnelDelayTick++;
         if (!CLT$HasInterface){
             if (CLT$FunnelDelayTick < control.createLazyTick$getCurrentSuperTick()) {
@@ -188,7 +180,6 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
         }
         CLT$FunnelDelayTick = 0;
 
-
         Funnel.Mode mode = determineCurrentMode();
 
         if (level.isClientSide) {
@@ -196,8 +187,6 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
             return;
         }
 
-
-        // Redstone resets the extraction cooldown
         if (mode == Funnel.Mode.PAUSED)
             createLazyTick$resetDelayTick(control);
         if (mode == Funnel.Mode.TAKING_FROM_BELT) {
@@ -205,19 +194,18 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
             return;
         }
 
-
         BlockState blockState = getBlockState();
         BlockPos blockPos = getBlockPos();
         CLT$HasInterface = createLazyTick$IsMovingInterface(blockPos,blockState);
 
         if (mode == Funnel.Mode.PUSHING_TO_BELT) {
-            //mes.warn("if (mode == Funnel.Mode.PUSHING_TO_BELT) {");
+
             activateExtractingBeltFunnel();
 
         }
 
         if (mode == Funnel.Mode.EXTRACT) {
-            //mes.warn("if (mode == Funnel.Mode.EXTRACT) {");
+
             activateExtractor();
         }
 
@@ -226,7 +214,6 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
 
     @Unique
     private Direction createlazytick$targetDirection = null;
-
 
     @Unique
     private boolean CLT$HasInterface = false;
@@ -238,28 +225,27 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
         }
 
         if (!(this instanceof ISmartBlockEntityControl control)) {
-            //mes.error("BlockEntity is not a SmartBlockEntityControl!");
+
             return;}
 
         if (invVersionTracker.stillWaiting(invManipulation)) {
-            //mes.blue("if (invVersionTracker.stillWaiting(invManipulation)) {");
+
             ci.cancel();
             return;
         }
         BlockState blockState = getBlockState();
 
-        //System.out.println();
         Direction facing = blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
         DirectBeltInputBehaviour inputBehaviour =
                 BlockEntityBehaviour.get(level, worldPosition.below(), DirectBeltInputBehaviour.TYPE);
 
         if (inputBehaviour == null) {
-           // mes.blue("if (inputBehaviour == null) {");
+
             ci.cancel();
             return;
         }
         if (!inputBehaviour.canInsertFromSide(facing)) {
-           // mes.blue("   if (!inputBehaviour.canInsertFromSide(facing)) {");
+
             ci.cancel();
             return;
         }
@@ -274,24 +260,22 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
         MutableBoolean deniedByInsertion = new MutableBoolean(false);
 
         AtomicInteger extract_time = new AtomicInteger();
-        // delay from this
+
         ItemStack stack = invManipulation.extract(mode, amountToExtract, s -> {
             extract_time.getAndIncrement();
-            //System.out.println("Extracting belt funnel"+extract_time);
 
             ItemStack handleInsertion = inputBehaviour.handleInsertion(s, facing, true);
             if (handleInsertion.isEmpty()) {
-                //System.out.println("Extracting fail!");
+
                 return true;
             }
             deniedByInsertion.setTrue();
-            //System.out.println("Extracting success!");
+
             return false;
         });
 
         if (stack.isEmpty()) {
 
-            //mes.blue("if (stack.isEmpty()) {");
             createLazyTick$FunnelBackOff(control);
             if (deniedByInsertion.isFalse())
                 invVersionTracker.awaitNewVersion(invManipulation.getInventory());
@@ -303,17 +287,10 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
         inputBehaviour.handleInsertion(stack, facing, false);
 
         createLazyTick$resetDelayTick(control);
-       // mes.blue("end");
+
         ci.cancel();
     }
 
-
-
-
-
-    //Tool func
-
-    //paradox Code (interesting func)
     @Unique
     private boolean createLazyTick$IsMovingInterface(BlockPos blockPos, BlockState blockState) {
 
@@ -328,7 +305,6 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
                     for (Direction dir : allDirections) {
                         Block block = level.getBlockState(blockPos.relative(dir)).getBlock();
 
-                        // 找到目标方块：记录方向并返回true
                         if (block == PORTABLE_STORAGE_INTERFACE.get() || block == DEPLOYER.get()) {
                             createlazytick$targetDirection = dir;
                             return true;
@@ -352,11 +328,6 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
         return false;
     }
 
-
-    /**
-     * @author PinkCats
-     * @reason For Inject
-     */
     @Overwrite
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
         invManipulation =
@@ -378,14 +349,4 @@ public abstract class FunnelLazyTickMixin extends SmartBlockEntity implements IH
         LazyTickScrollBehaviour.addTo(this, behaviours);
     }
 
-
-
-
-
-
-
-
 }
-
-
-

@@ -29,7 +29,7 @@ import java.util.List;
 
 import static net.pinkcats.createlazytick.CreateLazyTick.IsServerReload;
 import static net.pinkcats.createlazytick.helper.extraDataTool.CrafterExtraDataTool.packCrafterData;
-//需要翻译文本
+
 @Mixin(value = MechanicalCrafterBlockEntity.class,remap = false)
 public abstract class CrafterRedstoneLazyTickMixin extends SmartBlockEntity implements ISmartBlockEntityControl {
 
@@ -41,15 +41,12 @@ public abstract class CrafterRedstoneLazyTickMixin extends SmartBlockEntity impl
     @Unique
     private long lazytick$lastActiveTime = -1;
 
-    // 独立缓存:记住上次查到的真实信号,不依赖机器的 wasPoweredBefore,防止超高频震荡
     @Unique
     private boolean lazytick$cachedSignal = false;
 
-    // 分级活跃窗口
-    // 有信号:等待 2分钟(2400t) - 便于需要人工控制合成的情况(拉拉杆(?))
     @Unique
     private static final int WINDOW_POWERED = 2400;
-    // 无信号:等待 10秒(200t) - 优化闲置机器
+
     @Unique
     private static final int WINDOW_UNPOWERED = 200;
 
@@ -74,9 +71,7 @@ public abstract class CrafterRedstoneLazyTickMixin extends SmartBlockEntity impl
 
     @Unique
     private boolean lazytick$isInWindow(long gameTime, boolean isPowered) {
-        // 动态窗口检查
-        // !wasPoweredBefore && isPowered -> 合成
-        // 根据当前是否有被激活,决定活跃窗口期是2分钟还是10秒
+
         int currentWindow = isPowered ? WINDOW_POWERED : WINDOW_UNPOWERED;
         return (gameTime - lazytick$lastActiveTime < currentWindow);
     }
@@ -85,20 +80,17 @@ public abstract class CrafterRedstoneLazyTickMixin extends SmartBlockEntity impl
     private void lazytick$updateInterval(boolean signalChanged, boolean isPowered, long gameTime) {
         int maxDelay = ServerConfig.getCrafterRedstoneDelayMax();
 
-        // 信号发生改变,变回活跃状态 (刷新活跃时间)
         if (signalChanged) {
             lazytick$lastActiveTime = gameTime;
             LazyTickLogic.setIntervalSafe(this,1);
             return;
         }
 
-        // 如果还在活跃期内,始终保持活跃检测
         if (lazytick$isInWindow(gameTime, isPowered)) {
             LazyTickLogic.setIntervalSafe(this,1);
             return;
         }
 
-        // 不在窗口期时,累加延时检测
         int currentInterval = this.createLazyTick$getCurrentSuperTick();
         if (currentInterval < maxDelay) {
             int newDelayTick = LazyTickLogic.computeNextInterval(this, currentInterval, maxDelay);
@@ -123,13 +115,8 @@ public abstract class CrafterRedstoneLazyTickMixin extends SmartBlockEntity impl
         NetworkSyncHelper.createLazyTick$syncPacketData(this,
                 this.level, this.worldPosition, this.createLazyTick$getCurrentSuperTick(), ServerConfig.getCrafterRedstoneDelayMax());
 
-        /*if (!level.isClientSide()) {
-            System.out.println("Crafter:" + lazytick$redstoneTick + "/" + this.createLazyTick$getLazyTickInterval());
-        }*/
-
     }
 
-    // 仅针对MechanicalCrafterBlockEntity中的hasNeighborSignal的执行方法
     @Redirect(
             method = "tick",
             at = @At(
@@ -140,13 +127,10 @@ public abstract class CrafterRedstoneLazyTickMixin extends SmartBlockEntity impl
     )
     private boolean lazytick$dynamicRedstoneCheck(Level level, BlockPos pos) {
         if (!ServerConfig.getEnableLazyTick() || !ServerConfig.getEnableLazyCrafterRedstone() || level.isClientSide) {
-            // 如果是客户端/优化未开，直接返回原版逻辑（Level.hasNeighborSignal）
-            // 不要碰 redstoneTick/updateInterval
+
             return level.hasNeighborSignal(pos);
         }
 
-        // 在懒加载期间时,则返回独立缓存的信号状态
-        // 防止因 Mixin 跳过检测导致机器状态与真实信号不同步,进而引发每tick的极高频震荡(单独debug三秒给你刷几十上百KB)
         int interval = this.createLazyTick$getCurrentSuperTick();
         if (interval > 1) {
             lazytick$redstoneTick++;
@@ -158,7 +142,6 @@ public abstract class CrafterRedstoneLazyTickMixin extends SmartBlockEntity impl
 
         long gameTime = level.getGameTime();
 
-        // 重载时,按照正常逻辑返回
         if (IsServerReload) {
             lazytick$lastActiveTime = gameTime;
             LazyTickLogic.setIntervalSafe(this,1);
@@ -166,15 +149,12 @@ public abstract class CrafterRedstoneLazyTickMixin extends SmartBlockEntity impl
             return level.hasNeighborSignal(pos);
         }
 
-        // 执行正常返回逻辑并重置计时器(以及查看是否需要继续懒加载)
         boolean realSignal = level.hasNeighborSignal(pos);
 
-        // 更新独立缓存
         this.lazytick$cachedSignal = realSignal;
 
         boolean changed = (realSignal != this.wasPoweredBefore);
 
-        // 传入 realSignal 以决定使用长窗口还是短窗口
         lazytick$updateInterval(changed, realSignal, gameTime);
 
         return realSignal;

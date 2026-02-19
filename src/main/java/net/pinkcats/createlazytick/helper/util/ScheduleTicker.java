@@ -12,7 +12,7 @@ public class ScheduleTicker {
     private static final Random RANDOM = new Random();
 
     public ScheduleTicker(int triggerInterval, Runnable targetFunction) {
-        // 原有参数校验
+
         if (triggerInterval <= 0) {
             throw new IllegalArgumentException("Trigger interval must be a positive integer, current value: " + triggerInterval);
         }

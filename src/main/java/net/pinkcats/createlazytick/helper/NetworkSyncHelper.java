@@ -20,10 +20,9 @@ public class NetworkSyncHelper {
             int currentDelayTick,
             int maxDelayTick
     ) {
-        //mes.error(PacketCache.size());
+
         if (level == null || level.isClientSide) return;
         if (PacketCache.isEmpty()) return;
-
 
         String currentDim = level.dimension().location().toString();
 
@@ -37,7 +36,6 @@ public class NetworkSyncHelper {
             if (cmd != 0) {
                 control.CLT$onClientRequest(cmd);
             }
-            //
 
             control.lazytick$setSyncedTier(currentDelayTick, maxDelayTick);
 
@@ -45,9 +43,6 @@ public class NetworkSyncHelper {
             LazyTickLogic.updateState(control);
             break;
         }
-            //System.out.println("---");
-            //System.out.println(control.CLT$getMaxTicks());
-            //control.CLT$setMaxTicks(CurrentDelayTick);
-            //System.out.println(control.CLT$getMaxTicks());
+
     }
 }

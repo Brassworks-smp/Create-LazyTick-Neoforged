@@ -1,6 +1,5 @@
 package net.pinkcats.createlazytick.mixin.OptElement.depot;
 
-
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour;
@@ -19,7 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 import net.pinkcats.createlazytick.Gui.mes;
 import net.pinkcats.createlazytick.config.ServerConfig;
 import net.pinkcats.createlazytick.bridge.Create.ISmartBlockEntityControl;
@@ -111,8 +110,6 @@ public class DepotLazyTickMixin extends BlockEntityBehaviour {
             return;
         }
 
-       // mes.error("Run pack synchronization");
-       // mes.debug("server"+control.createLazyTick$getCurrentSuperTick());
         NetworkSyncHelper.createLazyTick$syncPacketData(
                 control,
                 this.blockEntity.getLevel(),
@@ -120,11 +117,9 @@ public class DepotLazyTickMixin extends BlockEntityBehaviour {
                 control.createLazyTick$getCurrentSuperTick(),
                 ServerConfig.getDepotDelayMax());
 
-
         for (Iterator<TransportedItemStack> iterator = incoming.iterator(); iterator.hasNext();) {
             TransportedItemStack ts = iterator.next();
             boolean tick_res = tick(ts);
-            //System.out.println(tick_res);
 
             if (!tick_res)
                 continue;
@@ -144,7 +139,6 @@ public class DepotLazyTickMixin extends BlockEntityBehaviour {
             blockEntity.notifyUpdate();
         }
 
-
         if (heldItem == null) {
             createLazyTick$resetDelayTick(control);
             ci.cancel();
@@ -162,18 +156,12 @@ public class DepotLazyTickMixin extends BlockEntityBehaviour {
             return;
         }
 
-        //tick emerge
-        //if (!world.isClientSide()) {
-        //    System.out.println("Depot" + createLazyTick$DepotDelayTick + "  " + control.createLazyTick$getCurrentSuperTick());
-        //}
-
         createLazyTick$DepotDelayTick++;
         if (createLazyTick$DepotDelayTick < control.createLazyTick$getCurrentSuperTick()) {
             ci.cancel();
             return;
         }
         createLazyTick$DepotDelayTick = 0;
-
 
         if (handleBeltFunnelOutput()) {
             ci.cancel();
@@ -197,11 +185,9 @@ public class DepotLazyTickMixin extends BlockEntityBehaviour {
         BeltProcessingBehaviour.ProcessingResult result = wasLocked ? processingBehaviour.handleHeldItem(heldItem, transportedHandler)
                 : processingBehaviour.handleReceivedItem(heldItem, transportedHandler);
 
-
         if (result == BeltProcessingBehaviour.ProcessingResult.PASS) {
             createLazyTick$applyBackoff(control);
         }
-
 
         if (result == BeltProcessingBehaviour.ProcessingResult.HOLD) {
             createLazyTick$resetDelayTick(control);
@@ -214,12 +200,11 @@ public class DepotLazyTickMixin extends BlockEntityBehaviour {
             return;
         }
         heldItem.locked = result == BeltProcessingBehaviour.ProcessingResult.HOLD;
-        if (heldItem.locked != wasLocked || !previousItem.equals(heldItem.stack, false)) {
+        if (heldItem.locked != wasLocked || !ItemStack.isSameItemSameComponents(previousItem, heldItem.stack)) {
             blockEntity.sendData();
         }
         ci.cancel();
     }
-
 
     @Inject(method = "handleBeltFunnelOutput",at=@At("HEAD" ),remap = false,cancellable = true)
     private void handleBeltFunnelOutput(CallbackInfoReturnable<Boolean> cir) {
@@ -243,8 +228,6 @@ public class DepotLazyTickMixin extends BlockEntityBehaviour {
             ItemStack afterInsert = blockEntity.getBehaviour(DirectBeltInputBehaviour.TYPE)
                     .tryExportingToBeltFunnel(previousItem, null, false);
 
-
-
             if (afterInsert == null) {
                 cir.setReturnValue(false);
                 cir.cancel();
@@ -263,7 +246,6 @@ public class DepotLazyTickMixin extends BlockEntityBehaviour {
         ItemStack afterInsert = blockEntity.getBehaviour(DirectBeltInputBehaviour.TYPE)
                 .tryExportingToBeltFunnel(previousItem, null, false);
 
-
         if (afterInsert == null) {
             cir.setReturnValue(false);
             cir.cancel();
@@ -277,8 +259,6 @@ public class DepotLazyTickMixin extends BlockEntityBehaviour {
         {
             createLazyTick$resetDelayTick(control);
         }
-
-
 
         if (previousItem.getCount() != afterInsert.getCount()) {
             if (afterInsert.isEmpty())
